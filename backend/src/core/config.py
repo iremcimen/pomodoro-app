@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: Environment = "development"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
+    
+    DATABASE_URL: str
 
     LOG_LEVEL: LogLevel = "INFO"
     LOG_JSON: bool = False
