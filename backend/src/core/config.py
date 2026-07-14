@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     LOG_JSON: bool = False
     LOG_COLORIZE: bool = True
 
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: Literal["HS256"] = "HS256"
+    JWT_ISSUER: str = "pomodoro-api"
+    JWT_AUDIENCE: str = "pomodoro-app"
+
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    REFRESH_TOKEN_PEPPER: str
+
     @field_validator("API_V1_PREFIX")
     @classmethod
     def validate_api_v1_prefix(cls, value: str) -> str:
