@@ -3,11 +3,12 @@ from uuid import UUID
 
 from src.core.config import settings
 from src.core.exceptions import (
-    ConflictException,
-    ForbiddenException,
+    EmailAlreadyExistsException,
+    InactiveUserException,
     InvalidCredentialsException,
     InvalidRefreshTokenException,
-    RefreshTokenReuseException,
+    TokenReuseDetectedException,
+    UsernameAlreadyExistsException,
 )
 from src.core.security.passwords import (
     hash_password,
@@ -101,14 +102,10 @@ class AuthService:
         username = request.username.strip().lower()
 
         if self._users.exists_by_email(email):
-            raise ConflictException(
-                "Email is already registered."
-            )
+            raise EmailAlreadyExistsException()
 
         if self._users.exists_by_username(username):
-            raise ConflictException(
-                "Username is already registered."
-            )
+            raise UsernameAlreadyExistsException()
 
         password_hash = hash_password(
             request.password,
@@ -170,9 +167,7 @@ class AuthService:
             raise InvalidCredentialsException()
 
         if not user.is_active:
-            raise ForbiddenException(
-                "Account is inactive."
-            )
+            raise InactiveUserException()
 
         _, token_pair = (
             self._create_session_and_token_pair(
@@ -207,7 +202,9 @@ class AuthService:
         now = datetime.now(UTC)
 
         if old_session is None:
-            raise InvalidRefreshTokenException()
+            raise InvalidRefreshTokenException(
+                reason="session_not_found",
+            )
 
         if old_session.revoked_at is not None:
             if (
@@ -218,24 +215,26 @@ class AuthService:
                     old_session.token_family_id,
                     revoked_at=now,
                 )
-                raise RefreshTokenReuseException()
+                raise TokenReuseDetectedException()
 
             raise InvalidRefreshTokenException()
 
         if old_session.expires_at <= now:
-            raise InvalidRefreshTokenException()
+            raise InvalidRefreshTokenException(
+                reason="expired",
+            )
 
         user = self._users.get_by_id(
             old_session.user_id,
         )
 
         if user is None:
-            raise InvalidRefreshTokenException()
+            raise InvalidRefreshTokenException(
+                reason="user_not_found",
+            )
 
         if not user.is_active:
-            raise ForbiddenException(
-                "Account is inactive."
-            )
+            raise InactiveUserException()
 
         new_session, token_pair = (
             self._create_session_and_token_pair(
