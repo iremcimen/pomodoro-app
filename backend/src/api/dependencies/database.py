@@ -5,7 +5,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from src.core.database import SessionLocal
-
+from src.core.exceptions import AppException
 
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
@@ -13,6 +13,17 @@ def get_db() -> Generator[Session, None, None]:
     try:
         yield db
         db.commit()
+    except AppException as exc:
+        if exc.commit_transaction:
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
+        else:
+            db.rollback()
+
+        raise
     except Exception:
         db.rollback()
         raise

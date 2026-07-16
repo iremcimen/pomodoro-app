@@ -10,6 +10,7 @@ class AppException(Exception):
     code: str = "INTERNAL_SERVER_ERROR"
     message: str = "Internal server error."
     log_level: str = "ERROR"
+    commit_transaction: bool = False
 
     def __init__(
         self,
@@ -83,6 +84,25 @@ class InvalidCredentialsException(
 ):
     code = "INVALID_CREDENTIALS"
     message = "Invalid credentials."
+
+
+class InvalidRefreshTokenException(
+    AuthenticationRequiredException
+):
+    code = "INVALID_REFRESH_TOKEN"
+    message = "Invalid refresh token."
+
+
+class RefreshTokenReuseException(
+    InvalidRefreshTokenException
+):
+    commit_transaction = True
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.safe_context = {
+            "reason": "refresh_token_reuse",
+        }
 
 
 # Kimliği doğrulanmış kullanıcının ilgili işlemi yapma yetkisi olmadığında 403 cevabı üretir.
