@@ -11,6 +11,16 @@ class AuthSessionRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
+    # sessionu id'si ile bulacak metod
+    def get_by_id(
+        self,
+        session_id: UUID,
+    ) -> AuthSession | None:
+        return self._db.get(
+            AuthSession,
+            session_id,
+        )
+
     def get_by_refresh_token_hash(
         self,
         refresh_token_hash: str,

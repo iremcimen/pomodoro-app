@@ -98,3 +98,18 @@ class UserRepository:
         self._db.refresh(user)
 
         return user
+
+    def update_profile(
+        self,
+        user: User,
+        *,
+        username: str,
+        full_name: str | None,
+    ) -> User:
+        user.username = username
+        user.full_name = full_name
+
+        self._db.flush()
+        self._db.refresh(user)
+
+        return user
