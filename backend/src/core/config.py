@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: Environment = "development"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
+
+    CORS_ALLOWED_ORIGINS: list[str] = []
     
     DATABASE_URL: str
 
