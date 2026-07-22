@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -40,7 +40,10 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
 
     ENVIRONMENT: Environment = "development"
-    DEBUG: bool = False
+    DEBUG: bool = Field(
+        default=False,
+        validation_alias="POMODORO_DEBUG",
+    )
     API_V1_PREFIX: str = "/api/v1"
 
     CORS_ALLOWED_ORIGINS: list[str] = []
