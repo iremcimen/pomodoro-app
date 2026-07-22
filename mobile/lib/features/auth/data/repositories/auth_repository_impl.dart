@@ -59,10 +59,11 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return _persist(refreshed);
     } on AppException catch (error) {
-      if (error.statusCode == 401) {
+      if (error.statusCode == 401 || error.statusCode == 403) {
         await _tokenStore.clear();
         return null;
       }
+
       rethrow;
     }
   }

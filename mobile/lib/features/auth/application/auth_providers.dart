@@ -5,11 +5,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/config/app_config.dart';
 import '../data/datasources/auth_remote_data_source.dart';
 import '../data/datasources/auth_token_store.dart';
+import '../data/interceptors/auth_interceptor.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../domain/repositories/auth_repository.dart';
 
-final dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(
+Dio _createDio() {
+  return Dio(
     BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 12),
@@ -20,8 +21,17 @@ final dioProvider = Provider<Dio>((ref) {
       headers: const {'Accept': Headers.jsonContentType},
     ),
   );
+}
+
+/*
+ * Login, register, refresh ve logout işlemlerinde kullanılan
+ * tokensız Dio nesnesi.
+ */
+final authDioProvider = Provider<Dio>((ref) {
+  final dio = _createDio();
 
   ref.onDispose(dio.close);
+
   return dio;
 });
 
@@ -34,7 +44,27 @@ final authTokenStoreProvider = Provider<AuthTokenStore>((ref) {
 });
 
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
-  return DioAuthRemoteDataSource(ref.watch(dioProvider));
+  return DioAuthRemoteDataSource(ref.watch(authDioProvider));
+});
+
+/*
+ * Task, FocusSession ve UserSettings gibi korumalı
+ * endpoint'lerde kullanılacak Dio nesnesi.
+ */
+final dioProvider = Provider<Dio>((ref) {
+  final dio = _createDio();
+
+  dio.interceptors.add(
+    AuthInterceptor(
+      dio: dio,
+      tokenStore: ref.watch(authTokenStoreProvider),
+      remoteDataSource: ref.watch(authRemoteDataSourceProvider),
+    ),
+  );
+
+  ref.onDispose(dio.close);
+
+  return dio;
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
