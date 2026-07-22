@@ -36,6 +36,8 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     register_middlewares(app)
 
+    app.include_router(health_router)
+
     app.include_router(
         api_router,
         prefix=settings.API_V1_PREFIX,

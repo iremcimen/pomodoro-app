@@ -1,13 +1,26 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String, func, true
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    String,
+    func,
+    true,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from src.core.database import Base
 
 if TYPE_CHECKING:
     from src.models.auth import AuthSession
+    from src.models.focus_sessions import FocusSession
+    from src.models.tasks import Task
+    from src.models.user_settings import UserSettings
 
 
 class User(Base):
@@ -63,4 +76,25 @@ class User(Base):
         back_populates="user",
         cascade="all, delete",
         passive_deletes=True,
+    )
+
+    tasks: Mapped[list["Task"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    focus_sessions: Mapped[list["FocusSession"]] = (
+        relationship(
+            back_populates="user",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        )
+    )
+
+    settings: Mapped["UserSettings | None"] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
     )

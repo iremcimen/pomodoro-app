@@ -84,7 +84,9 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # Required values are loaded from environment variables
+    # by pydantic-settings at runtime.
+    return Settings()  # type: ignore[call-arg]
 
 
 settings = get_settings()

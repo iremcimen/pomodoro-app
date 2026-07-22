@@ -52,7 +52,12 @@ class UserRepository:
         if email is not None:
             return self.get_by_email(email)
 
-        return self.get_by_username(username)
+        if username is not None:
+            return self.get_by_username(username)
+
+        raise ValueError(
+            "A login identifier must be provided."
+        )
 
     def exists_by_email(
         self,
