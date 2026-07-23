@@ -1,10 +1,21 @@
 from fastapi import FastAPI
 
-from src.core.middlewares.request_id import RequestIdMiddleware
+from src.core.middlewares.cors import (
+    register_cors_middleware,
+)
+from src.core.middlewares.request_id import (
+    RequestIdMiddleware,
+)
 
 
-def register_middlewares(app: FastAPI) -> None:
-    app.add_middleware(RequestIdMiddleware)
+def register_middlewares(
+    app: FastAPI,
+) -> None:
+    app.add_middleware(
+        RequestIdMiddleware,
+    )
+
+    register_cors_middleware(app)
 
 
-# app.add_middleware(...) çağrılarını tek yerde toplar.
+# Bu dosya middleware’leri doğru sırayla birleştirmekten sorumlu

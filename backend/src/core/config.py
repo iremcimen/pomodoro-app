@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -40,12 +40,29 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
 
     ENVIRONMENT: Environment = "development"
-    DEBUG: bool = False
+    DEBUG: bool = Field(
+        default=False,
+        validation_alias="POMODORO_DEBUG",
+    )
     API_V1_PREFIX: str = "/api/v1"
+
+    CORS_ALLOWED_ORIGINS: list[str] = []
+    
+    DATABASE_URL: str
 
     LOG_LEVEL: LogLevel = "INFO"
     LOG_JSON: bool = False
     LOG_COLORIZE: bool = True
+
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: Literal["HS256"] = "HS256"
+    JWT_ISSUER: str = "pomodoro-api"
+    JWT_AUDIENCE: str = "pomodoro-app"
+
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    REFRESH_TOKEN_PEPPER: str
 
     @field_validator("API_V1_PREFIX")
     @classmethod
@@ -70,7 +87,9 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # Required values are loaded from environment variables
+    # by pydantic-settings at runtime.
+    return Settings()  # type: ignore[call-arg]
 
 
 settings = get_settings()

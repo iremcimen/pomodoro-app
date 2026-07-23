@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from loguru import logger
 
-from src.api import api_router
+from src.api import api_router, health_router
 from src.core.config import settings
 from src.core.logging import configure_logging
 from src.core.middlewares import register_middlewares
@@ -35,6 +35,8 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     register_middlewares(app)
+
+    app.include_router(health_router)
 
     app.include_router(
         api_router,

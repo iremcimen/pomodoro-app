@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Literal
 
 
 # Bütün uygulamaya özel hataların ortak HTTP ve log bilgilerini taşıyan temel sınıftır.
@@ -10,6 +10,7 @@ class AppException(Exception):
     code: str = "INTERNAL_SERVER_ERROR"
     message: str = "Internal server error."
     log_level: str = "ERROR"
+    commit_transaction: bool = False
 
     def __init__(
         self,
@@ -62,6 +63,38 @@ class ConflictException(AppException):
     log_level = "WARNING"
 
 
+# Kayıt sırasında email adresi zaten kullanılıyorsa güvenli bir 409 cevabı üretir.
+class EmailAlreadyExistsException(
+    ConflictException
+):
+    code = "EMAIL_ALREADY_EXISTS"
+    message = "Email is already registered."
+
+    def __init__(self) -> None:
+        super().__init__(
+            safe_context={
+                "field": "email",
+                "reason": "already_exists",
+            },
+        )
+
+
+# Kayıt sırasında username zaten kullanılıyorsa güvenli bir 409 cevabı üretir.
+class UsernameAlreadyExistsException(
+    ConflictException
+):
+    code = "USERNAME_ALREADY_EXISTS"
+    message = "Username is already registered."
+
+    def __init__(self) -> None:
+        super().__init__(
+            safe_context={
+                "field": "username",
+                "reason": "already_exists",
+            },
+        )
+
+
 # Endpoint'e erişmek için geçerli bir kullanıcı oturumu gerektiğinde 401 cevabı üretir.
 class AuthenticationRequiredException(AppException):
     status_code = HTTPStatus.UNAUTHORIZED.value
@@ -69,11 +102,16 @@ class AuthenticationRequiredException(AppException):
     message = "Authentication required."
     log_level = "WARNING"
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        safe_context: dict[str, object] | None = None,
+    ) -> None:
         super().__init__(
             headers={
                 "WWW-Authenticate": "Bearer",
             },
+            safe_context=safe_context,
         )
 
 
@@ -85,12 +123,108 @@ class InvalidCredentialsException(
     message = "Invalid credentials."
 
 
+AccessTokenFailureReason = Literal[
+    "invalid",
+    "expired",
+    "invalid_claims",
+    "session_not_found",
+    "revoked",
+]
+
+
+# Geçersiz access token durumlarını istemciye tek tip güvenli bir 401 cevabı olarak sunar.
+class InvalidTokenException(
+    AuthenticationRequiredException
+):
+    code = "INVALID_ACCESS_TOKEN"
+    message = "Invalid access token."
+
+    def __init__(
+        self,
+        *,
+        reason: AccessTokenFailureReason = "invalid",
+    ) -> None:
+        super().__init__(
+            safe_context={
+                "token_kind": "access",
+                "reason": reason,
+            },
+        )
+
+
+# Süresi dolmuş access token'ı logda ayırt ederken istemciye genel token hatası döndürür.
+class ExpiredTokenException(
+    InvalidTokenException
+):
+    def __init__(self) -> None:
+        super().__init__(
+            reason="expired",
+        )
+
+
+RefreshTokenFailureReason = Literal[
+    "invalid",
+    "expired",
+    "revoked",
+    "reuse_detected",
+    "session_not_found",
+    "user_not_found",
+]
+
+
+# Refresh token hatalarını gerçek nedeni yalnızca güvenli log context'inde tutarak bildirir.
+class InvalidRefreshTokenException(
+    AuthenticationRequiredException
+):
+    code = "INVALID_REFRESH_TOKEN"
+    message = "Invalid refresh token."
+
+    def __init__(
+        self,
+        *,
+        reason: RefreshTokenFailureReason = "invalid",
+    ) -> None:
+        super().__init__(
+            safe_context={
+                "token_kind": "refresh",
+                "reason": reason,
+            },
+        )
+
+
+# Daha önce döndürülmüş refresh token tekrar kullanıldığında token ailesinin iptalini kalıcılaştırır.
+class TokenReuseDetectedException(
+    InvalidRefreshTokenException
+):
+    commit_transaction = True
+
+    def __init__(self) -> None:
+        super().__init__(
+            reason="reuse_detected",
+        )
+
+
 # Kimliği doğrulanmış kullanıcının ilgili işlemi yapma yetkisi olmadığında 403 cevabı üretir.
 class ForbiddenException(AppException):
     status_code = HTTPStatus.FORBIDDEN.value
     code = "FORBIDDEN"
     message = "You do not have permission to perform this action."
     log_level = "WARNING"
+
+
+# Kimliği doğrulansa bile hesabı aktif olmayan kullanıcı için güvenli bir 403 cevabı üretir.
+class InactiveUserException(
+    ForbiddenException
+):
+    code = "INACTIVE_USER"
+    message = "User account is inactive."
+
+    def __init__(self) -> None:
+        super().__init__(
+            safe_context={
+                "reason": "inactive_user",
+            },
+        )
 
 
 # Veritabanına geçici olarak erişilemediğinde güvenli bir 503 cevabı üretir.
