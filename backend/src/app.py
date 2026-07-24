@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,14 +11,15 @@ from src.core.middlewares import register_middlewares
 from src.core.exception_handlers import register_exception_handlers
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(
+    _: FastAPI,
+) -> AsyncGenerator[None, None]:
     logger.info("application_started")
 
     try:
         yield
     finally:
         logger.info("application_stopped")
-
 
 def create_app() -> FastAPI:
     configure_logging()
