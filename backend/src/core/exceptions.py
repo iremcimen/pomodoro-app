@@ -94,6 +94,26 @@ class UsernameAlreadyExistsException(
             },
         )
 
+# Bir kullanıcının aynı anda yalnızca bir tane devam eden session’ı olabilir.
+# Kullanıcının zaten aktif session’ı varsa
+class ActiveSessionExistsException(
+    ConflictException
+):
+    code = "ACTIVE_SESSION_EXISTS"
+    message = (
+        "The user already has an active session."
+    )
+
+# Bitmiş bir session tekrar değiştirilmeye çalışılırsa
+class InvalidSessionTransitionException(
+    ConflictException
+):
+    code = "INVALID_SESSION_TRANSITION"
+    message = (
+        "The session cannot be changed "
+        "from its current state."
+    )
+
 
 # Endpoint'e erişmek için geçerli bir kullanıcı oturumu gerektiğinde 401 cevabı üretir.
 class AuthenticationRequiredException(AppException):
