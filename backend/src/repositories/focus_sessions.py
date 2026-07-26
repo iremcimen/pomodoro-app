@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.models.focus_sessions import (
@@ -166,3 +166,30 @@ class FocusSessionRepository:
         self._db.refresh(focus_session)
 
         return focus_session
+
+    def completed_focus_summary(
+        self,
+        *,
+        user_id: int,
+        since: datetime,
+    ) -> tuple[int, int]:
+        statement = select(
+            func.coalesce(
+                func.sum(
+                    FocusSession.actual_duration_seconds,
+                ),
+                0,
+            ),
+            func.count(FocusSession.id),
+        ).where(
+            FocusSession.user_id == user_id,
+            FocusSession.session_type
+            == SessionType.FOCUS.value,
+            FocusSession.status
+            == SessionStatus.COMPLETED.value,
+            FocusSession.ended_at >= since,
+        )
+
+        row = self._db.execute(statement).one()
+
+        return int(row[0]), int(row[1])

@@ -46,13 +46,19 @@ class AuthController extends AsyncNotifier<AuthSession?> {
   }
 
   Future<void> logout() async {
-    if (state.isLoading) return;
-    state = const AsyncLoading();
+    if (state.value == null) return;
+
+    // Route away immediately; browser storage and remote revocation must not
+    // keep the user on a protected screen.
+    state = const AsyncData(null);
+
     try {
       await ref.read(authRepositoryProvider).logout();
-      state = const AsyncData(null);
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
+      await ref
+          .read(secureStorageProvider)
+          .delete(key: 'cache.statistics.summary');
+    } on Object {
+      // A cleanup failure must not restore the in-memory UI session.
     }
   }
 }

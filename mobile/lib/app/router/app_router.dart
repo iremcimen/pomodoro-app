@@ -6,11 +6,17 @@ import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/tasks/presentation/pages/tasks_page.dart';
+import '../../features/statistics/presentation/pages/statistics_page.dart';
 
 abstract final class AppRoutes {
   static const login = '/login';
   static const register = '/register';
   static const home = '/';
+  static const settings = '/settings';
+  static const tasks = '/tasks';
+  static const statistics = '/statistics';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -37,6 +43,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
         name: 'home',
         builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        name: 'settings',
+        builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.tasks,
+        name: 'tasks',
+        builder: (context, state) => const TasksPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.statistics,
+        name: 'statistics',
+        builder: (context, state) => const StatisticsPage(),
       ),
     ],
     redirect: (context, state) {

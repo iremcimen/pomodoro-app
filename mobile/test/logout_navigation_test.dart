@@ -25,9 +25,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Oturumun hazır.'), findsOneWidget);
+    expect(find.text('Ayarlar yükleniyor…'), findsOneWidget);
 
-    await tester.tap(find.text('Çıkış yap'));
+    await tester.tap(find.byTooltip('Çıkış yap'));
     await tester.pumpAndSettle();
 
     expect(repository.logoutCalled, isTrue);
