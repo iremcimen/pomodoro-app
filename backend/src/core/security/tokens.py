@@ -37,7 +37,7 @@ def create_access_token(
 
     return jwt.encode(
         payload,
-        settings.JWT_SECRET_KEY,
+        settings.JWT_SECRET_KEY.get_secret_value(),
         algorithm=settings.JWT_ALGORITHM,
     )
 
@@ -47,7 +47,7 @@ def decode_access_token(
 ) -> dict[str, Any]:
     payload: dict[str, Any] = jwt.decode(
         token,
-        settings.JWT_SECRET_KEY,
+        settings.JWT_SECRET_KEY.get_secret_value(),
         algorithms=[settings.JWT_ALGORITHM],
         audience=settings.JWT_AUDIENCE,
         issuer=settings.JWT_ISSUER,
@@ -107,17 +107,14 @@ def hash_refresh_token(
             "Refresh token cannot be empty."
         )
 
+    pepper = (
+        settings
+        .REFRESH_TOKEN_PEPPER
+        .get_secret_value()
+    )
+
     return hmac.new(
-        key=settings.REFRESH_TOKEN_PEPPER.encode("utf-8"),
+        key=pepper.encode("utf-8"),
         msg=refresh_token.encode("utf-8"),
         digestmod=hashlib.sha256,
     ).hexdigest()
-
-"""
-Görevleri:
-Access token üretmek.
-Access token doğrulamak.
-Rastgele refresh token üretmek.
-Refresh token hashlemek.
-JWT payload içinden güvenli claim’leri okumak.
-"""

@@ -6,6 +6,9 @@ from src.core.middlewares.cors import (
 from src.core.middlewares.request_id import (
     RequestIdMiddleware,
 )
+from src.core.middlewares.trusted_hosts import (
+    register_trusted_host_middleware,
+)
 
 
 def register_middlewares(
@@ -16,6 +19,6 @@ def register_middlewares(
     )
 
     register_cors_middleware(app)
-
+    register_trusted_host_middleware(app)
 
 # Bu dosya middleware’leri doğru sırayla birleştirmekten sorumlu
