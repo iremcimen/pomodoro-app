@@ -204,19 +204,19 @@ class FocusSessionService:
             )
         )
 
-        should_increment_task = (
+        task_id = focus_session.task_id
+
+        if (
             target_status
             == SessionStatus.COMPLETED
             and focus_session.session_type
             == SessionType.FOCUS.value
-            and focus_session.task_id is not None
-        )
-
-        if should_increment_task:
+            and task_id is not None
+        ):
             updated_task = (
                 self._tasks
                 .increment_completed_pomodoros(
-                    task_id=focus_session.task_id,
+                    task_id=task_id,
                     user_id=current_user.id,
                 )
             )
