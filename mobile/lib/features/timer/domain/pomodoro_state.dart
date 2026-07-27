@@ -1,6 +1,14 @@
 enum PomodoroPhase { focus, shortBreak, longBreak }
 
-enum TimerStatus { idle, running, paused, completing }
+enum TimerStatus {
+  idle,
+  syncing,
+  starting,
+  running,
+  paused,
+  cancelling,
+  completing,
+}
 
 int remainingSecondsUntil(DateTime endsAt, DateTime now) {
   final milliseconds = endsAt.difference(now).inMilliseconds;
@@ -24,7 +32,7 @@ class PomodoroState {
     required this.status,
     required this.remainingSeconds,
     required this.plannedSeconds,
-    required this.completedFocusCount,
+    required this.dailyCompletedFocusCount,
     this.selectedTaskId,
     this.sessionId,
     this.startedAt,
@@ -36,7 +44,7 @@ class PomodoroState {
   final TimerStatus status;
   final int remainingSeconds;
   final int plannedSeconds;
-  final int completedFocusCount;
+  final int dailyCompletedFocusCount;
   final int? selectedTaskId;
   final String? sessionId;
   final DateTime? startedAt;
@@ -46,12 +54,18 @@ class PomodoroState {
   bool get isActive =>
       status == TimerStatus.running || status == TimerStatus.paused;
 
+  bool get isBusy =>
+      status == TimerStatus.syncing ||
+      status == TimerStatus.starting ||
+      status == TimerStatus.cancelling ||
+      status == TimerStatus.completing;
+
   PomodoroState copyWith({
     PomodoroPhase? phase,
     TimerStatus? status,
     int? remainingSeconds,
     int? plannedSeconds,
-    int? completedFocusCount,
+    int? dailyCompletedFocusCount,
     int? selectedTaskId,
     bool clearSelectedTask = false,
     String? sessionId,
@@ -66,7 +80,8 @@ class PomodoroState {
     status: status ?? this.status,
     remainingSeconds: remainingSeconds ?? this.remainingSeconds,
     plannedSeconds: plannedSeconds ?? this.plannedSeconds,
-    completedFocusCount: completedFocusCount ?? this.completedFocusCount,
+    dailyCompletedFocusCount:
+        dailyCompletedFocusCount ?? this.dailyCompletedFocusCount,
     selectedTaskId: clearSelectedTask
         ? null
         : selectedTaskId ?? this.selectedTaskId,

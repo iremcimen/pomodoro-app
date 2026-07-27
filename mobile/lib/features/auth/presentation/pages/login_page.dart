@@ -23,6 +23,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -32,25 +33,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
-    await ref
-        .read(authControllerProvider.notifier)
-        .login(
-          identifier: _identifierController.text,
-          password: _passwordController.text,
-        );
+    setState(() => _isSubmitting = true);
+    try {
+      await ref
+          .read(authControllerProvider.notifier)
+          .login(
+            identifier: _identifierController.text,
+            password: _passwordController.text,
+          );
 
-    if (mounted && ref.read(authControllerProvider).value != null) {
-      TextInput.finishAutofillContext();
+      if (mounted && ref.read(authControllerProvider).value != null) {
+        TextInput.finishAutofillContext();
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     listenForAuthErrors(ref, context);
-    final authState = ref.watch(authControllerProvider);
 
     return AuthLayout(
       title: 'Tekrar hoş geldin',
@@ -89,7 +94,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const SizedBox(height: 26),
               SubmitButton(
                 label: 'Giriş yap',
-                isLoading: authState.isLoading,
+                loadingLabel: 'Giriş yapılıyor…',
+                isLoading: _isSubmitting,
                 onPressed: _submit,
               ),
             ],

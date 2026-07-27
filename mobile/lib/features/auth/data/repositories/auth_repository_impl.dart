@@ -16,6 +16,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   final AuthRemoteDataSource _remoteDataSource;
   final AuthTokenStore _tokenStore;
+  static const _refreshTimeout = Duration(seconds: 4);
 
   @override
   Future<AuthSession> login({
@@ -54,10 +55,13 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
-      final refreshed = await _remoteDataSource.refresh(
-        storedToken.refreshToken,
-      );
+      final refreshed = await _remoteDataSource
+          .refresh(storedToken.refreshToken)
+          .timeout(_refreshTimeout);
       return _persist(refreshed);
+    } on TimeoutException {
+      await _tokenStore.clear();
+      return null;
     } on AppException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await _tokenStore.clear();

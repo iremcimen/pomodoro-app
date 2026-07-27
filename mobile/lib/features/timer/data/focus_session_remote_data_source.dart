@@ -1,11 +1,33 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/error/app_exception.dart';
+import '../domain/active_focus_session.dart';
 import '../domain/pomodoro_state.dart';
 
 class FocusSessionRemoteDataSource {
   const FocusSessionRemoteDataSource(this._dio);
   final Dio _dio;
+
+  Future<ActiveFocusSession?> getActive() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/focus-sessions/active',
+      );
+      final data = response.data;
+      if (data == null) {
+        throw const FormatException('Missing active focus session response.');
+      }
+      return ActiveFocusSession.fromJson(data);
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) return null;
+      throw AppException.fromDio(error);
+    } on FormatException {
+      throw const AppException(
+        message: 'Açık oturum bilgisi okunamadı. Lütfen tekrar deneyin.',
+        code: 'INVALID_FOCUS_SESSION_RESPONSE',
+      );
+    }
+  }
 
   Future<void> start({
     required String id,

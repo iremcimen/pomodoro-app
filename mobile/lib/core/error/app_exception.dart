@@ -56,6 +56,8 @@ class AppException implements Exception {
       'EMAIL_ALREADY_EXISTS' => 'Bu e-posta adresi zaten kayıtlı.',
       'USERNAME_ALREADY_EXISTS' => 'Bu kullanıcı adı zaten alınmış.',
       'INACTIVE_USER' => 'Bu kullanıcı hesabı aktif değil.',
+      'ACTIVE_SESSION_EXISTS' =>
+        'Açık oturumunuz geri yüklenemedi. Lütfen tekrar deneyin.',
       'VALIDATION_ERROR' => 'Bilgileri kontrol edip tekrar deneyin.',
       'DATABASE_UNAVAILABLE' => 'Hizmet geçici olarak kullanılamıyor.',
       _ =>

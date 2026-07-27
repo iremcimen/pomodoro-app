@@ -115,6 +115,54 @@ def validate_production_database_url(
     return errors
 
 
+def validate_production_redis_url(
+    redis_url: str,
+) -> list[str]:
+    errors: list[str] = []
+    parsed_url = urlparse(redis_url)
+
+    if parsed_url.scheme != "rediss":
+        errors.append(
+            "REDIS_URL must use rediss:// in production."
+        )
+
+    if not parsed_url.hostname:
+        errors.append(
+            "REDIS_URL must contain a Redis host."
+        )
+    elif parsed_url.hostname.lower() in {
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    }:
+        errors.append(
+            "REDIS_URL cannot use a loopback host "
+            "in production."
+        )
+
+    if not parsed_url.username:
+        errors.append(
+            "REDIS_URL must contain an ACL username "
+            "in production."
+        )
+
+    if not parsed_url.password:
+        errors.append(
+            "REDIS_URL must contain a password "
+            "in production."
+        )
+    elif (
+        parsed_url.password.strip().lower()
+        in FORBIDDEN_SECRET_VALUES
+    ):
+        errors.append(
+            "REDIS_URL contains an unsafe "
+            "placeholder password."
+        )
+
+    return errors
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -158,9 +206,32 @@ class Settings(BaseSettings):
     )
 
     # Redis settings
-    REDIS_URL: str | None = None
-    REDIS_KEY_PREFIX: str = "pomodoro"
+    REDIS_URL: SecretStr | None = None
+    REDIS_KEY_PREFIX: str = "pomo"
+    REDIS_SERVICE_PREFIX: str = "api"
     REDIS_REQUIRED: bool = False
+
+    REDIS_MAX_CONNECTIONS: int = Field(
+        default=20,
+        ge=1,
+    )
+    REDIS_CONNECT_TIMEOUT_SECONDS: float = Field(
+        default=1.0,
+        gt=0,
+    )
+    REDIS_SOCKET_TIMEOUT_SECONDS: float = Field(
+        default=1.0,
+        gt=0,
+    )
+    REDIS_HEALTHCHECK_TIMEOUT_SECONDS: float = Field(
+        default=1.0,
+        gt=0,
+    )
+    REDIS_POOL_HEALTHCHECK_INTERVAL_SECONDS: int = Field(
+        default=30,
+        ge=0,
+    )
+    REDIS_SSL_CA_CERTS: Path | None = None
 
     # JWT and authentication settings
     JWT_SECRET_KEY: SecretStr
@@ -212,6 +283,7 @@ class Settings(BaseSettings):
         "SERVICE_NAME",
         "APP_VERSION",
         "REDIS_KEY_PREFIX",
+        "REDIS_SERVICE_PREFIX",
         "JWT_ISSUER",
         "JWT_AUDIENCE",
     )
@@ -226,6 +298,22 @@ class Settings(BaseSettings):
             raise ValueError("Value cannot be empty.")
 
         return normalized_value
+
+    @field_validator(
+        "REDIS_KEY_PREFIX",
+        "REDIS_SERVICE_PREFIX",
+    )
+    @classmethod
+    def validate_redis_prefix_segment(
+        cls,
+        value: str,
+    ) -> str:
+        if ":" in value:
+            raise ValueError(
+                "Redis prefix segments cannot contain ':'."
+            )
+
+        return value
 
     @field_validator("CORS_ALLOWED_ORIGINS")
     @classmethod
@@ -258,10 +346,32 @@ class Settings(BaseSettings):
     def validate_environment_settings(
         self,
     ) -> "Settings":
-        if self.ENVIRONMENT != "production":
-            return self
-
         errors: list[str] = []
+
+        if self.REDIS_REQUIRED and not self.REDIS_URL:
+            errors.append(
+                "REDIS_URL is required when "
+                "REDIS_REQUIRED is true."
+            )
+
+        if (
+            self.RATE_LIMIT_ENABLED
+            and not self.RATE_LIMIT_FAIL_OPEN
+            and not self.REDIS_REQUIRED
+        ):
+            errors.append(
+                "REDIS_REQUIRED must be true when rate "
+                "limiting is configured to fail closed."
+            )
+
+        if self.ENVIRONMENT != "production":
+            if errors:
+                raise ValueError(
+                    "Invalid configuration:\n- "
+                    + "\n- ".join(errors)
+                )
+
+            return self
 
         if self.DEBUG:
             errors.append(
@@ -313,20 +423,20 @@ class Settings(BaseSettings):
                 "in production."
             )
 
-        if self.REDIS_REQUIRED and not self.REDIS_URL:
-            errors.append(
-                "REDIS_URL is required when "
-                "REDIS_REQUIRED is true."
+        if self.REDIS_URL is not None:
+            errors.extend(
+                validate_production_redis_url(
+                    self.REDIS_URL.get_secret_value()
+                )
             )
 
         if (
-            self.RATE_LIMIT_ENABLED
-            and not self.RATE_LIMIT_FAIL_OPEN
-            and not self.REDIS_REQUIRED
+            self.REDIS_SSL_CA_CERTS is not None
+            and not self.REDIS_SSL_CA_CERTS.is_file()
         ):
             errors.append(
-                "REDIS_REQUIRED must be true when rate "
-                "limiting is configured to fail closed."
+                "REDIS_SSL_CA_CERTS must point to "
+                "an existing CA certificate file."
             )
 
         errors.extend(
