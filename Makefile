@@ -12,8 +12,8 @@ help:
 	@echo "  make mobile        Android emulatorunde calistir"
 	@echo "  make phone         Fiziksel Android telefonda calistir"
 	@echo "  make ios           iOS simulatorunde calistir"
-	@echo "  make db            PostgreSQL veritabanini baslat"
-	@echo "  make db-down       PostgreSQL veritabanini durdur"
+	@echo "  make db            PostgreSQL ve Redis'i baslat"
+	@echo "  make db-down       Altyapi containerlarini durdur"
 	@echo "  make migrate       Veritabani migrationlarini calistir"
 	@echo "  make backend-check Backend kontrollerini calistir"
 	@echo "  make mobile-check  Flutter kontrollerini calistir"
@@ -35,7 +35,7 @@ ios:
 	cd mobile && flutter run -d ios --dart-define=API_BASE_URL=$(WEB_API_URL)
 
 db:
-	docker compose up -d postgres
+	docker compose up -d postgres redis
 
 db-down:
 	docker compose down

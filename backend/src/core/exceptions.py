@@ -254,4 +254,11 @@ class DatabaseUnavailableException(AppException):
     message = "Database service is temporarily unavailable."
     log_level = "ERROR"
 
-# Hata türlerini tanımlar.
+
+class RedisUnavailableException(AppException):
+    status_code = HTTPStatus.SERVICE_UNAVAILABLE.value
+    code = "REDIS_UNAVAILABLE"
+    message = "Redis service is temporarily unavailable."
+    log_level = "ERROR"
+
+# Bu dosya hata türlerini tanımlar.
