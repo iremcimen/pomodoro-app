@@ -1,6 +1,9 @@
 from collections.abc import Mapping
 
-from sqlalchemy import select
+from sqlalchemy import (
+    select,
+    update as sql_update,
+)
 from sqlalchemy.orm import Session
 
 from src.models.tasks import Task
@@ -132,6 +135,36 @@ class TaskRepository:
 
         return task
 
+    # Task'ın tamamlanan Pomodoro sayısını veritabanında güvenli şekilde bir artırır.
+    def increment_completed_pomodoros(
+        self,
+        *,
+        task_id: int,
+        user_id: int,
+    ) -> Task | None:
+        statement = (
+            sql_update(Task)
+            .where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+            )
+            .values(
+                completed_pomodoros=(
+                    Task.completed_pomodoros + 1
+                ),
+            )
+            .returning(Task)
+        )
+
+        task = self._db.execute(
+            statement,
+        ).scalar_one_or_none()
+
+        if task is not None:
+            self._db.refresh(task)
+
+        return task
+
     # Verilen Task kaydını veritabanından siler.
     def delete(
         self,
@@ -139,5 +172,3 @@ class TaskRepository:
     ) -> None:
         self._db.delete(task)
         self._db.flush()
-
-# Repository yalnızca veritabanı işlemlerinden sorumludur.
