@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 
 
+# Web istemcisinin kullanabileceği CORS politikasını kaydeder.
 def register_cors_middleware(
     app: FastAPI,
 ) -> None:
@@ -25,5 +26,9 @@ def register_cors_middleware(
         ],
         expose_headers=[
             "X-Request-ID",
+            "Retry-After",
+            "RateLimit-Limit",
+            "RateLimit-Remaining",
+            "RateLimit-Reset",
         ],
     )

@@ -11,25 +11,46 @@ from src.core.exception_handlers import (
 )
 from src.core.logging import configure_logging
 from src.core.middlewares import register_middlewares
+from src.core.rate_limiting import RateLimiter
 from src.core.redis import RedisManager
 
 
+# Redis ve rate limiter'ın uygulama ömrü boyunca tek instance olmasını sağlar.
 @asynccontextmanager
 async def lifespan(
     app: FastAPI,
 ) -> AsyncGenerator[None, None]:
-    redis_manager = RedisManager.from_settings(settings)
+    redis_manager = RedisManager.from_settings(
+        settings
+    )
     app.state.redis_manager = redis_manager
 
     try:
         await redis_manager.open()
+
+        app.state.rate_limiter = RateLimiter(
+            redis_manager=redis_manager,
+            enabled=settings.RATE_LIMIT_ENABLED,
+            key_salt=(
+                settings
+                .RATE_LIMIT_KEY_SALT
+                .get_secret_value()
+            ),
+            local_max_buckets=(
+                settings
+                .RATE_LIMIT_LOCAL_MAX_BUCKETS
+            ),
+        )
+
         logger.info("application_started")
         yield
     finally:
+        app.state.rate_limiter = None
         await redis_manager.close()
         logger.info("application_stopped")
 
 
+# FastAPI uygulamasını handler, middleware ve router'larla oluşturur.
 def create_app() -> FastAPI:
     configure_logging()
 

@@ -1,3 +1,4 @@
+from ipaddress import ip_network
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -257,8 +258,18 @@ class Settings(BaseSettings):
     TRUSTED_PROXY_IPS: list[str] = []
 
     # Rate-limit settings
+    # Rate-limit sistemini açıp kapatır.
     RATE_LIMIT_ENABLED: bool = False
-    RATE_LIMIT_FAIL_OPEN: bool = True
+
+    # Redis anahtarlarında kullanılan özel verileri HMAC ile gizler.
+    RATE_LIMIT_KEY_SALT: SecretStr
+
+    # Redis kesildiğinde kullanılacak worker-local bucket üst sınırıdır.
+    RATE_LIMIT_LOCAL_MAX_BUCKETS: int = Field(
+        default=10_000,
+        ge=100,
+        le=1_000_000,
+    )
 
     # Logging and observability settings
     LOG_LEVEL: LogLevel = "INFO"
@@ -342,6 +353,30 @@ class Settings(BaseSettings):
             if value.strip()
         ]
 
+    # Güvenilir proxy listesinde yalnız geçerli IP veya CIDR bulunmasını sağlar.
+    @field_validator("TRUSTED_PROXY_IPS")
+    @classmethod
+    def validate_trusted_proxy_networks(
+        cls,
+        values: list[str],
+    ) -> list[str]:
+        normalized_values = [
+            value.strip()
+            for value in values
+            if value.strip()
+        ]
+
+        for value in normalized_values:
+            try:
+                ip_network(value, strict=False)
+            except ValueError as exc:
+                raise ValueError(
+                    "TRUSTED_PROXY_IPS values must be "
+                    "valid IP addresses or CIDR networks."
+                ) from exc
+
+        return normalized_values
+
     @model_validator(mode="after")
     def validate_environment_settings(
         self,
@@ -354,14 +389,9 @@ class Settings(BaseSettings):
                 "REDIS_REQUIRED is true."
             )
 
-        if (
-            self.RATE_LIMIT_ENABLED
-            and not self.RATE_LIMIT_FAIL_OPEN
-            and not self.REDIS_REQUIRED
-        ):
+        if self.RATE_LIMIT_ENABLED and self.REDIS_URL is None:
             errors.append(
-                "REDIS_REQUIRED must be true when rate "
-                "limiting is configured to fail closed."
+                "REDIS_URL is required when rate limiting is enabled."
             )
 
         if self.ENVIRONMENT != "production":
@@ -385,6 +415,10 @@ class Settings(BaseSettings):
             self.REFRESH_TOKEN_PEPPER.get_secret_value()
         )
 
+        rate_limit_key_salt = (
+            self.RATE_LIMIT_KEY_SALT.get_secret_value()
+        )
+
         if not is_strong_secret(jwt_secret):
             errors.append(
                 "JWT_SECRET_KEY must contain at least "
@@ -395,6 +429,24 @@ class Settings(BaseSettings):
             errors.append(
                 "REFRESH_TOKEN_PEPPER must contain at least "
                 "32 characters and cannot use a placeholder."
+            )
+
+        if (
+            self.RATE_LIMIT_ENABLED
+            and not is_strong_secret(rate_limit_key_salt)
+        ):
+            errors.append(
+                "RATE_LIMIT_KEY_SALT must contain at least "
+                "32 characters and cannot use a placeholder."
+            )
+
+        if rate_limit_key_salt in {
+            jwt_secret,
+            refresh_token_pepper,
+        }:
+            errors.append(
+                "RATE_LIMIT_KEY_SALT must be different from "
+                "JWT_SECRET_KEY and REFRESH_TOKEN_PEPPER."
             )
 
         if "*" in self.CORS_ALLOWED_ORIGINS:
