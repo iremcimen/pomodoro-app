@@ -6,6 +6,10 @@ from src.core.middlewares.cors import (
 from src.core.middlewares.rate_limit import (
     GlobalRateLimitMiddleware,
 )
+from src.core.config import settings
+from src.core.middlewares.body_limit import (
+    RequestBodyLimitMiddleware,
+)
 from src.core.middlewares.request_id import (
     RequestIdMiddleware,
 )
@@ -22,6 +26,10 @@ def register_middlewares(
     app.add_middleware(
         GlobalRateLimitMiddleware,
     )
+    app.add_middleware(
+        RequestBodyLimitMiddleware,
+        max_body_bytes=settings.MAX_REQUEST_BODY_BYTES,
+    )
 
     register_trusted_host_middleware(app)
     register_cors_middleware(app)
@@ -32,3 +40,8 @@ def register_middlewares(
     )
 
 # Bu dosya middleware’leri doğru sırayla birleştirmekten sorumlu
+# Request ID → CORS → Trusted Host → Body Limit → Rate Limit → Endpoint
+
+
+
+

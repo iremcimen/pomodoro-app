@@ -261,4 +261,17 @@ class RedisUnavailableException(AppException):
     message = "Redis service is temporarily unavailable."
     log_level = "ERROR"
 
+class RequestBodyTooLargeException(AppException):
+    status_code = 413
+    code = "REQUEST_BODY_TOO_LARGE"
+    message = "Request body is too large."
+    log_level = "WARNING"
+
+    def __init__(self, max_body_bytes: int) -> None:
+        super().__init__(
+            safe_context={
+                "max_body_bytes": max_body_bytes,
+            },
+        )
+
 # Bu dosya hata türlerini tanımlar.
