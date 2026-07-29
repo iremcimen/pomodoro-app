@@ -403,7 +403,7 @@ class _PhaseRail extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: phase == activePhase
-                          ? colorScheme.primaryContainer
+                          ? colorScheme.secondary
                           : colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(AppRadii.medium),
                     ),
@@ -412,7 +412,7 @@ class _PhaseRail extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: phase == activePhase
-                            ? colorScheme.onPrimaryContainer
+                            ? colorScheme.onSecondary
                             : colorScheme.onSurfaceVariant,
                         fontWeight: phase == activePhase
                             ? FontWeight.w800
@@ -597,24 +597,20 @@ String _shortPhaseTitle(PomodoroPhase phase) => switch (phase) {
 };
 
 @visibleForTesting
-String timerStatusTitle(TimerStatus status, PomodoroPhase phase) =>
-    switch (status) {
+String timerStatusTitle(
+  TimerStatus status,
+  PomodoroPhase phase,
+) => switch (status) {
   TimerStatus.idle => 'Başlamaya hazır',
   TimerStatus.syncing => 'Oturumun hazırlanıyor…',
   TimerStatus.starting =>
-    phase == PomodoroPhase.focus
-        ? 'Odak başlatılıyor…'
-        : 'Mola başlatılıyor…',
+    phase == PomodoroPhase.focus ? 'Odak başlatılıyor…' : 'Mola başlatılıyor…',
   TimerStatus.running => 'Devam ediyor',
   TimerStatus.paused => 'Duraklatıldı',
   TimerStatus.cancelling =>
-    phase == PomodoroPhase.focus
-        ? 'Odak iptal ediliyor…'
-        : 'Mola atlanıyor…',
+    phase == PomodoroPhase.focus ? 'Odak iptal ediliyor…' : 'Mola atlanıyor…',
   TimerStatus.completing =>
-    phase == PomodoroPhase.focus
-        ? 'Odak tamamlanıyor…'
-        : 'Mola tamamlanıyor…',
+    phase == PomodoroPhase.focus ? 'Odak tamamlanıyor…' : 'Mola tamamlanıyor…',
 };
 
 @visibleForTesting
@@ -632,10 +628,7 @@ String timerPrimaryAction(TimerStatus status, PomodoroPhase phase) =>
     };
 
 @visibleForTesting
-String? pomodoroCompletionMessage(
-  PomodoroState? previous,
-  PomodoroState next,
-) {
+String? pomodoroCompletionMessage(PomodoroState? previous, PomodoroState next) {
   final isCompletedSessionTransition =
       previous != null &&
       previous.status == TimerStatus.completing &&

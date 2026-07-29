@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../features/auth/application/auth_controller.dart';
 
@@ -175,8 +176,6 @@ class _BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Semantics(
       label: 'Pomo',
       image: true,
@@ -184,10 +183,10 @@ class _BrandMark extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: colorScheme.primary,
+          color: AppColors.cyberGrape,
           borderRadius: BorderRadius.circular(AppRadii.medium),
         ),
-        child: Icon(Icons.timer_rounded, color: colorScheme.onPrimary),
+        child: const Icon(Icons.timer_rounded, color: AppColors.acidLime),
       ),
     );
   }

@@ -1,14 +1,19 @@
 # Pomo mobile design system
 
 Pomo is an operational, cross-platform productivity interface. The visual
-language is quiet and direct: warm coral marks action and progress, tinted
-neutral surfaces create hierarchy, and the timer remains the dominant object.
+language is energetic and direct: Cyber Grape owns the brand and progress,
+Acid Lime marks primary actions and active states, purple-tinted neutral
+surfaces create hierarchy, and the timer remains the dominant object.
 
 ## Foundations
 
 - Color lives in `lib/app/theme/app_colors.dart`. Feature code should consume
   `Theme.of(context).colorScheme`; direct palette imports are reserved for
   brand assets that must keep a fixed identity.
+- Cyber Grape (`#6D28D9`) is the dominant brand color. Acid Lime (`#D7FF00`)
+  is reserved for high-value actions, selection, and active state. Acid Lime
+  always carries dark purple foreground content; it is not used as text on
+  light surfaces.
 - Spacing, radii, and motion constants live in
   `lib/app/theme/app_tokens.dart`. Add a token only when the same intent appears
   at least three times.
