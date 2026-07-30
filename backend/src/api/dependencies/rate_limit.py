@@ -10,6 +10,9 @@ from src.core.client_ip import get_client_ip
 from src.core.rate_limit_policies import (
     AUTHENTICATED_IP,
     AUTHENTICATED_USER,
+    GOOGLE_LOGIN_IP_HOUR,
+    GOOGLE_LOGIN_IP_MINUTE,
+    GOOGLE_LOGIN_TOKEN,
     LOGIN_ACCOUNT,
     LOGIN_IP_ACCOUNT,
     LOGIN_IP_HOUR,
@@ -28,6 +31,7 @@ from src.core.rate_limiting import (
     apply_rate_limit_headers,
 )
 from src.schemas.auth import (
+    GoogleLoginRequest,
     LoginRequest,
     RefreshTokenRequest,
 )
@@ -38,6 +42,41 @@ from src.schemas.auth import (
 class LoginRateLimitContext:
     account_subject: str
 
+
+async def enforce_google_login_rate_limit(
+    *,
+    payload: GoogleLoginRequest,
+    request: Request,
+    response: Response,
+    limiter: RateLimiter,
+) -> None:
+    client_ip = get_client_ip(request)
+
+    decision = await limiter.enforce(
+        [
+            RateLimitTarget(
+                GOOGLE_LOGIN_IP_MINUTE,
+                f"ip:{client_ip}",
+            ),
+            RateLimitTarget(
+                GOOGLE_LOGIN_IP_HOUR,
+                f"ip:{client_ip}",
+            ),
+            RateLimitTarget(
+                GOOGLE_LOGIN_TOKEN,
+                (
+                    "google-id-token:"
+                    f"{payload.id_token}"
+                ),
+            ),
+        ],
+        failure_mode=FailureMode.LOCAL,
+    )
+
+    apply_rate_limit_headers(
+        response.headers,
+        decision,
+    )
 
 # App lifespan sırasında oluşturulan ortak limiter nesnesini döndürür.
 def get_rate_limiter(

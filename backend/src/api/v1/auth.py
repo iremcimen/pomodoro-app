@@ -15,16 +15,24 @@ from src.api.dependencies.database import DbSession
 from src.api.dependencies.rate_limit import (
     RateLimiterDependency,
     clear_successful_login_limit,
+    enforce_google_login_rate_limit,
     enforce_login_rate_limit,
     enforce_refresh_rate_limit,
     enforce_register_rate_limit,
 )
 from src.core.client_ip import get_client_ip
+from src.api.dependencies.google_auth import (
+    GoogleIdTokenVerifierDependency,
+)
+from src.repositories.auth_identities import (
+    AuthIdentityRepository,
+)
 from src.repositories.auth_sessions import (
     AuthSessionRepository,
 )
 from src.repositories.users import UserRepository
 from src.schemas.auth import (
+    GoogleLoginRequest,
     LoginRequest,
     LogoutRequest,
     RefreshTokenRequest,
@@ -46,6 +54,12 @@ def get_auth_service(
 ) -> AuthService:
     return AuthService(
         user_repository=UserRepository(db),
+        password_credential_repository=(
+            PasswordCredentialRepository(db)
+        ),
+        auth_identity_repository=(
+            AuthIdentityRepository(db)
+        ),
         auth_session_repository=(
             AuthSessionRepository(db)
         ),
@@ -146,6 +160,39 @@ async def login(
     )
 
     return token_pair
+
+# Google giriş
+@router.post(
+    "/google",
+    response_model=TokenPairResponse,
+    summary="Authenticate with Google",
+)
+async def google_login(
+    payload: GoogleLoginRequest,
+    request: Request,
+    response: Response,
+    auth_service: AuthServiceDependency,
+    verifier: GoogleIdTokenVerifierDependency,
+    limiter: RateLimiterDependency,
+) -> TokenPairResponse:
+    await enforce_google_login_rate_limit(
+        payload=payload,
+        request=request,
+        response=response,
+        limiter=limiter,
+    )
+
+    user_agent, ip_address = (
+        get_client_metadata(request)
+    )
+
+    return await run_in_threadpool(
+        auth_service.login_with_google,
+        payload,
+        verifier=verifier,
+        user_agent=user_agent,
+        ip_address=ip_address,
+    )
 
 
 # Refresh limitlerini kontrol edip token rotation işlemini threadpool'da çalıştırır.

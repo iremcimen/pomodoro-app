@@ -1,8 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
+import secrets
 
 from src.core.config import settings
 from src.core.exceptions import (
+    AccountLinkRequiredException,
     EmailAlreadyExistsException,
     InactiveUserException,
     InvalidCredentialsException,
@@ -19,13 +21,20 @@ from src.core.security.tokens import (
     generate_refresh_token,
     hash_refresh_token,
 )
+from src.core.security.google_tokens import (
+    GoogleIdTokenVerifier,
+)
 from src.models.auth import AuthSession
 from src.models.users import User
+from src.repositories.auth_identities import (
+    AuthIdentityRepository,
+)
 from src.repositories.auth_sessions import (
     AuthSessionRepository,
 )
 from src.repositories.users import UserRepository
 from src.schemas.auth import (
+    GoogleLoginRequest,
     LoginRequest,
     LogoutRequest,
     RefreshTokenRequest,
@@ -43,9 +52,21 @@ class AuthService:
     def __init__(
         self,
         user_repository: UserRepository,
+        password_credential_repository: (
+            PasswordCredentialRepository
+        ),
+        auth_identity_repository: (
+            AuthIdentityRepository
+        ),
         auth_session_repository: AuthSessionRepository,
     ) -> None:
         self._users = user_repository
+        self._password_credentials = (
+            password_credential_repository
+        )
+        self._auth_identities = (
+            auth_identity_repository
+        )
         self._auth_sessions = auth_session_repository
 
     # Rastgele refresh token üretir. Hash’ini veritabanına kaydeder. Session ID içeren access token üretir. Token pair oluşturur.
@@ -89,6 +110,23 @@ class AuthService:
         )
 
         return auth_session, token_pair
+
+    # Rastgele username üretir
+    def _generate_google_username(self) -> str:
+        for _ in range(10):
+            candidate = (
+                f"user_{secrets.token_hex(6)}"
+            )
+
+            if not self._users.exists_by_username(
+                candidate
+            ):
+                return candidate
+
+        raise RuntimeError(
+            "A unique generated username "
+            "could not be allocated."
+        )
     
 
     def register(
@@ -173,6 +211,115 @@ class AuthService:
             self._create_session_and_token_pair(
                 user_id=user.id,
                 now=datetime.now(UTC),
+                user_agent=user_agent,
+                ip_address=ip_address,
+            )
+        )
+
+        return token_pair
+
+    def login_with_google(
+        self,
+        request: GoogleLoginRequest,
+        *,
+        verifier: GoogleIdTokenVerifier,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> TokenPairResponse:
+        verified_identity = verifier.verify(
+            request.id_token
+        )
+
+        identity = (
+            self._auth_identities
+            .get_by_provider_subject(
+                provider="google",
+                provider_subject=(
+                    verified_identity.subject
+                ),
+            )
+        )
+
+        now = datetime.now(UTC)
+
+        if identity is not None:
+            user = self._users.get_by_id(
+                identity.user_id
+            )
+
+            if user is None:
+                raise RuntimeError(
+                    "Google identity references "
+                    "a missing user."
+                )
+
+            if not user.is_active:
+                raise InactiveUserException()
+
+            self._auth_identities.record_login(
+                identity,
+                email_snapshot=(
+                    verified_identity.email
+                ),
+                email_verified=(
+                    verified_identity.email_verified
+                ),
+                display_name=(
+                    verified_identity.display_name
+                ),
+                avatar_url=(
+                    verified_identity.avatar_url
+                ),
+            )
+
+            _, token_pair = (
+                self._create_session_and_token_pair(
+                    user_id=user.id,
+                    now=now,
+                    user_agent=user_agent,
+                    ip_address=ip_address,
+                )
+            )
+
+            return token_pair
+
+        existing_user = self._users.get_by_email(
+            verified_identity.email
+        )
+
+        if existing_user is not None:
+            raise AccountLinkRequiredException()
+
+        user = self._users.create(
+            email=verified_identity.email,
+            username=self._generate_google_username(),
+            full_name=verified_identity.display_name,
+        )
+
+        self._auth_identities.create(
+            user_id=user.id,
+            provider="google",
+            provider_subject=(
+                verified_identity.subject
+            ),
+            email_snapshot=(
+                verified_identity.email
+            ),
+            email_verified=(
+                verified_identity.email_verified
+            ),
+            display_name=(
+                verified_identity.display_name
+            ),
+            avatar_url=(
+                verified_identity.avatar_url
+            ),
+        )
+
+        _, token_pair = (
+            self._create_session_and_token_pair(
+                user_id=user.id,
+                now=now,
                 user_agent=user_agent,
                 ip_address=ip_address,
             )

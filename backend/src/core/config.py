@@ -276,6 +276,17 @@ class Settings(BaseSettings):
     LOG_JSON: bool = False
     LOG_COLORIZE: bool = True
 
+    # Google settings
+    GOOGLE_AUTH_ENABLED: bool = False
+
+    GOOGLE_OAUTH_CLIENT_IDS: list[str] = []
+
+    GOOGLE_TOKEN_CLOCK_SKEW_SECONDS: int = Field(
+        default=5,
+        ge=0,
+        le=60,
+    )
+
     @field_validator("API_V1_PREFIX")
     @classmethod
     def validate_api_v1_prefix(
@@ -377,6 +388,33 @@ class Settings(BaseSettings):
 
         return normalized_values
 
+    @field_validator("GOOGLE_OAUTH_CLIENT_IDS")
+    @classmethod
+    def validate_google_oauth_client_ids(
+        cls,
+        values: list[str],
+    ) -> list[str]:
+        normalized_values: list[str] = []
+
+        for value in values:
+            normalized = value.strip()
+
+            if not normalized:
+                continue
+
+            if not normalized.endswith(
+                ".apps.googleusercontent.com"
+            ):
+                raise ValueError(
+                    "Google OAuth client IDs must end with "
+                    "'.apps.googleusercontent.com'."
+                )
+
+            if normalized not in normalized_values:
+                normalized_values.append(normalized)
+
+        return normalized_values
+
     @model_validator(mode="after")
     def validate_environment_settings(
         self,
@@ -392,6 +430,15 @@ class Settings(BaseSettings):
         if self.RATE_LIMIT_ENABLED and self.REDIS_URL is None:
             errors.append(
                 "REDIS_URL is required when rate limiting is enabled."
+            )
+
+        if (
+            self.GOOGLE_AUTH_ENABLED
+            and not self.GOOGLE_OAUTH_CLIENT_IDS
+        ):
+            errors.append(
+                "GOOGLE_OAUTH_CLIENT_IDS is required when "
+                "Google authentication is enabled."
             )
 
         if self.ENVIRONMENT != "production":

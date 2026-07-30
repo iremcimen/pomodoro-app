@@ -135,3 +135,22 @@ EXPORT_USER = RateLimitRule(
     limit=5,
     window_seconds=60,
 )
+
+
+GOOGLE_LOGIN_IP_MINUTE = RateLimitRule(
+    name="google-login-ip-minute",
+    limit=10,
+    window_seconds=60,
+)
+
+GOOGLE_LOGIN_IP_HOUR = RateLimitRule(
+    name="google-login-ip-hour",
+    limit=100,
+    window_seconds=3_600,
+)
+
+GOOGLE_LOGIN_TOKEN = RateLimitRule(
+    name="google-login-token-minute",
+    limit=5,
+    window_seconds=60,
+)

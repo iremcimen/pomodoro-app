@@ -13,13 +13,30 @@ from src.core.logging import configure_logging
 from src.core.middlewares import register_middlewares
 from src.core.rate_limiting import RateLimiter
 from src.core.redis import RedisManager
-
+from src.core.security.google_tokens import (
+    GoogleIdTokenVerifier,
+)
 
 # Redis ve rate limiter'ın uygulama ömrü boyunca tek instance olmasını sağlar.
 @asynccontextmanager
 async def lifespan(
     app: FastAPI,
 ) -> AsyncGenerator[None, None]:
+
+    google_id_token_verifier = (
+        GoogleIdTokenVerifier(
+            client_ids=settings.GOOGLE_OAUTH_CLIENT_IDS,
+            clock_skew_seconds=(
+                settings.GOOGLE_TOKEN_CLOCK_SKEW_SECONDS
+            ),
+        )
+        if settings.GOOGLE_AUTH_ENABLED
+        else None
+    )
+
+    app.state.google_id_token_verifier = (
+        google_id_token_verifier
+    )
     redis_manager = RedisManager.from_settings(
         settings
     )
@@ -46,6 +63,11 @@ async def lifespan(
         yield
     finally:
         app.state.rate_limiter = None
+        app.state.google_id_token_verifier = None
+
+        if google_id_token_verifier is not None:
+            google_id_token_verifier.close()
+
         await redis_manager.close()
         logger.info("application_stopped")
 
