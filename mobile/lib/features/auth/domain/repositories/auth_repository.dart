@@ -13,6 +13,8 @@ abstract interface class AuthRepository {
     String? fullName,
   });
 
+  Future<AuthSession> loginWithGoogle(String idToken);
+
   Future<AuthSession?> restoreSession();
 
   Future<void> logout();

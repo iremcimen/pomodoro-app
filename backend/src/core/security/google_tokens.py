@@ -8,11 +8,16 @@ from email_validator import (
     EmailNotValidError,
     validate_email,
 )
-from google.auth.exceptions import TransportError
+from google.auth.exceptions import (
+    GoogleAuthError,
+    TransportError,
+)
 from google.auth.transport.requests import (
     Request as GoogleRequest,
 )
-from google.oauth2 import id_token as google_id_token
+from google.oauth2 import (
+    id_token as google_id_token,
+)
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -56,19 +61,35 @@ class GoogleIdTokenVerifier:
             )
 
         self._client_ids = normalized_client_ids
-        self._clock_skew_seconds = clock_skew_seconds
+        self._clock_skew_seconds = (
+            clock_skew_seconds
+        )
+
+        # Auth endpoint threadpool içinde
+        # çalıştığı için her thread kendi
+        # Google Request nesnesini kullanır.
         self._thread_local = local()
-        self._sessions: list[requests.Session] = []
+
+        # Uygulama kapanırken oluşturulan
+        # HTTP session'ları kapatabilmek için tutulur.
+        self._sessions: list[
+            requests.Session
+        ] = []
         self._sessions_lock = Lock()
 
-    def _get_request(self) -> GoogleRequest:
+    def _get_request(
+        self,
+    ) -> GoogleRequest:
         current_request = getattr(
             self._thread_local,
             "google_request",
             None,
         )
 
-        if isinstance(current_request, GoogleRequest):
+        if isinstance(
+            current_request,
+            GoogleRequest,
+        ):
             return current_request
 
         session = requests.Session()
@@ -87,16 +108,24 @@ class GoogleIdTokenVerifier:
                 503,
                 504,
             ),
-            allowed_methods=frozenset({"GET"}),
+            allowed_methods=frozenset(
+                {"GET"}
+            ),
             raise_on_status=False,
         )
 
         session.mount(
             "https://",
-            HTTPAdapter(max_retries=retry),
+            HTTPAdapter(
+                max_retries=retry,
+            ),
         )
 
-        cached_session = CacheControl(session)
+        # Google public key cevaplarını
+        # Cache-Control header'ına göre cache'ler.
+        cached_session = CacheControl(
+            session
+        )
 
         google_request = GoogleRequest(
             session=cached_session,
@@ -107,7 +136,9 @@ class GoogleIdTokenVerifier:
         )
 
         with self._sessions_lock:
-            self._sessions.append(cached_session)
+            self._sessions.append(
+                cached_session
+            )
 
         return google_request
 
@@ -115,29 +146,50 @@ class GoogleIdTokenVerifier:
         self,
         raw_token: str,
     ) -> VerifiedGoogleIdentity:
+        normalized_token = raw_token.strip()
+
+        if (
+            not normalized_token
+            or len(normalized_token) > 8192
+        ):
+            raise InvalidGoogleTokenException()
+
         try:
             claims = (
-                google_id_token.verify_oauth2_token(
-                    raw_token,
+                google_id_token
+                .verify_oauth2_token(
+                    normalized_token,
                     self._get_request(),
-                    audience=list(self._client_ids),
+                    audience=list(
+                        self._client_ids
+                    ),
                     clock_skew_in_seconds=(
                         self._clock_skew_seconds
                     ),
                 )
             )
         except TransportError as exc:
+            # Google public key servisine geçici
+            # olarak ulaşılamaması 401 değil 503'tür.
             raise (
                 GoogleIdentityProviderUnavailableException()
             ) from exc
-        except ValueError as exc:
-            raise InvalidGoogleTokenException() from exc
+        except (
+            GoogleAuthError,
+            ValueError,
+        ) as exc:
+            # Geçersiz imza, issuer, süre veya
+            # parse hataları güvenli bir 401 üretir.
+            raise (
+                InvalidGoogleTokenException()
+            ) from exc
 
         audience = claims.get("aud")
 
         if (
             not isinstance(audience, str)
-            or audience not in self._client_ids
+            or audience
+            not in self._client_ids
         ):
             raise InvalidGoogleTokenException(
                 reason="wrong_audience",
@@ -148,7 +200,7 @@ class GoogleIdTokenVerifier:
         if (
             not isinstance(subject, str)
             or not subject.strip()
-            or len(subject) > 255
+            or len(subject.strip()) > 255
         ):
             raise InvalidGoogleTokenException(
                 reason="missing_subject",
@@ -156,22 +208,34 @@ class GoogleIdTokenVerifier:
 
         raw_email = claims.get("email")
 
-        if not isinstance(raw_email, str):
+        if not isinstance(
+            raw_email,
+            str,
+        ):
             raise InvalidGoogleTokenException(
                 reason="missing_email",
             )
 
         try:
-            email = validate_email(
+            validated_email = validate_email(
                 raw_email,
                 check_deliverability=False,
-            ).normalized
+            )
+
+            email = (
+                validated_email
+                .normalized
+                .lower()
+            )
         except EmailNotValidError as exc:
             raise InvalidGoogleTokenException(
                 reason="missing_email",
             ) from exc
 
-        if claims.get("email_verified") is not True:
+        if (
+            claims.get("email_verified")
+            is not True
+        ):
             raise InvalidGoogleTokenException(
                 reason="email_not_verified",
             )
@@ -181,8 +245,10 @@ class GoogleIdTokenVerifier:
             max_length=100,
         )
 
-        avatar_url = self._validated_avatar_url(
-            claims.get("picture")
+        avatar_url = (
+            self._validated_avatar_url(
+                claims.get("picture"),
+            )
         )
 
         hosted_domain = self._optional_text(
@@ -192,7 +258,7 @@ class GoogleIdTokenVerifier:
 
         return VerifiedGoogleIdentity(
             subject=subject.strip(),
-            email=email.lower(),
+            email=email,
             email_verified=True,
             display_name=display_name,
             avatar_url=avatar_url,
@@ -202,7 +268,9 @@ class GoogleIdTokenVerifier:
 
     def close(self) -> None:
         with self._sessions_lock:
-            sessions = list(self._sessions)
+            sessions = list(
+                self._sessions
+            )
             self._sessions.clear()
 
         for session in sessions:
@@ -214,7 +282,10 @@ class GoogleIdTokenVerifier:
         *,
         max_length: int,
     ) -> str | None:
-        if not isinstance(value, str):
+        if not isinstance(
+            value,
+            str,
+        ):
             return None
 
         normalized = value.strip()
@@ -228,15 +299,23 @@ class GoogleIdTokenVerifier:
     def _validated_avatar_url(
         value: object,
     ) -> str | None:
-        if not isinstance(value, str):
+        if not isinstance(
+            value,
+            str,
+        ):
             return None
 
         normalized = value.strip()
 
-        if not normalized or len(normalized) > 2048:
+        if (
+            not normalized
+            or len(normalized) > 2048
+        ):
             return None
 
-        parsed = urlparse(normalized)
+        parsed = urlparse(
+            normalized
+        )
 
         if (
             parsed.scheme != "https"

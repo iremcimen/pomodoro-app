@@ -18,7 +18,11 @@ from src.core.database import Base
 
 if TYPE_CHECKING:
     from src.models.auth import AuthSession
+    from src.models.auth_identities import AuthIdentity
     from src.models.focus_sessions import FocusSession
+    from src.models.password_credentials import (
+        PasswordCredential,
+    )
     from src.models.tasks import Task
     from src.models.user_settings import UserSettings
 
@@ -47,11 +51,6 @@ class User(Base):
         nullable=True,
     )
 
-    password_hash: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -78,18 +77,29 @@ class User(Base):
         passive_deletes=True,
     )
 
+    password_credential: Mapped["PasswordCredential | None"] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
+
+    auth_identities: Mapped[list["AuthIdentity"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     tasks: Mapped[list["Task"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
 
-    focus_sessions: Mapped[list["FocusSession"]] = (
-        relationship(
-            back_populates="user",
-            cascade="all, delete-orphan",
-            passive_deletes=True,
-        )
+    focus_sessions: Mapped[list["FocusSession"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     settings: Mapped["UserSettings | None"] = relationship(

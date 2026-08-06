@@ -31,6 +31,9 @@ from src.repositories.auth_sessions import (
     AuthSessionRepository,
 )
 from src.repositories.users import UserRepository
+from src.repositories.password_credentials import (
+    PasswordCredentialRepository,
+)
 from src.schemas.auth import (
     GoogleLoginRequest,
     LoginRequest,

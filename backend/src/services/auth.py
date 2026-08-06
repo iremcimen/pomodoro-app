@@ -33,6 +33,9 @@ from src.repositories.auth_sessions import (
     AuthSessionRepository,
 )
 from src.repositories.users import UserRepository
+from src.repositories.password_credentials import (
+    PasswordCredentialRepository,
+)
 from src.schemas.auth import (
     GoogleLoginRequest,
     LoginRequest,
@@ -153,6 +156,10 @@ class AuthService:
             email=email,
             username=username,
             full_name=request.full_name,
+        )
+
+        self._password_credentials.create(
+            user_id=user.id,
             password_hash=password_hash,
         )
 
@@ -198,9 +205,20 @@ class AuthService:
             )
             raise InvalidCredentialsException()
 
+        credential = (
+            self._password_credentials
+            .get_by_user_id(user.id)
+        )
+
+        password_hash = (
+            credential.password_hash
+            if credential is not None
+            else _DUMMY_PASSWORD_HASH
+        )
+
         if not verify_password(
             request.password,
-            user.password_hash,
+            password_hash,
         ):
             raise InvalidCredentialsException()
 

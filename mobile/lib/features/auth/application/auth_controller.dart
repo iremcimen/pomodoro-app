@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/auth_session.dart';
@@ -71,6 +73,20 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     }
   }
 
+  Future<void> loginWithGoogle(String idToken) async {
+    if (_authenticationInFlight) return;
+    _authenticationInFlight = true;
+    try {
+      await _restoration;
+      state = const AsyncLoading();
+      state = await AsyncValue.guard(
+        () => ref.read(authRepositoryProvider).loginWithGoogle(idToken),
+      );
+    } finally {
+      _authenticationInFlight = false;
+    }
+  }
+
   Future<void> logout() async {
     if (state.value == null) return;
 
@@ -79,6 +95,7 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     state = const AsyncData(null);
 
     try {
+      unawaited(ref.read(googleIdentityServiceProvider).signOut());
       await ref.read(authRepositoryProvider).logout();
       await ref
           .read(secureStorageProvider)

@@ -3,6 +3,9 @@
 WEB_API_URL := http://localhost:8000/api/v1
 MOBILE_API_URL := http://10.0.2.2:8000/api/v1
 PHONE_API_URL ?= http://192.168.1.50:8000/api/v1
+GOOGLE_WEB_CLIENT_ID ?=
+GOOGLE_SERVER_CLIENT_ID ?=
+WEB_HOSTNAME := localhost
 WEB_PORT := 52134
 
 help:
@@ -18,18 +21,22 @@ help:
 	@echo "  make backend-check Backend kontrollerini calistir"
 	@echo "  make mobile-check  Flutter kontrollerini calistir"
 	@echo "  make test          Tum kontrolleri calistir"
+	@echo ""
+	@echo "Google girisi icin client ID'leri komuta ekleyin:"
+	@echo "  make web GOOGLE_WEB_CLIENT_ID=...apps.googleusercontent.com"
+	@echo "  make mobile GOOGLE_SERVER_CLIENT_ID=...apps.googleusercontent.com"
 
 dev: db
 	cd backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 web:
-	cd mobile && flutter run -d chrome --web-port $(WEB_PORT) --dart-define=API_BASE_URL=$(WEB_API_URL)
+	cd mobile && flutter run -d chrome --web-hostname $(WEB_HOSTNAME) --web-port $(WEB_PORT) --dart-define=API_BASE_URL=$(WEB_API_URL) --dart-define=GOOGLE_WEB_CLIENT_ID=$(GOOGLE_WEB_CLIENT_ID)
 
 mobile:
-	cd mobile && flutter run -d android --dart-define=API_BASE_URL=$(MOBILE_API_URL)
+	cd mobile && flutter run -d android --dart-define=API_BASE_URL=$(MOBILE_API_URL) --dart-define=GOOGLE_SERVER_CLIENT_ID=$(GOOGLE_SERVER_CLIENT_ID)
 
 phone:
-	cd mobile && flutter run --dart-define=API_BASE_URL=$(PHONE_API_URL)
+	cd mobile && flutter run --dart-define=API_BASE_URL=$(PHONE_API_URL) --dart-define=GOOGLE_SERVER_CLIENT_ID=$(GOOGLE_SERVER_CLIENT_ID)
 
 ios:
 	cd mobile && flutter run -d ios --dart-define=API_BASE_URL=$(WEB_API_URL)

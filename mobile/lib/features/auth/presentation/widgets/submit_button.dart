@@ -8,12 +8,14 @@ class SubmitButton extends StatelessWidget {
     required this.loadingLabel,
     required this.isLoading,
     required this.onPressed,
+    this.isEnabled = true,
     super.key,
   });
 
   final String label;
   final String loadingLabel;
   final bool isLoading;
+  final bool isEnabled;
   final VoidCallback onPressed;
 
   @override
@@ -21,7 +23,7 @@ class SubmitButton extends StatelessWidget {
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
 
     return FilledButton(
-      onPressed: isLoading ? null : onPressed,
+      onPressed: isLoading || !isEnabled ? null : onPressed,
       child: AnimatedSwitcher(
         duration: AppMotion.resolve(context, AppMotion.fast),
         reverseDuration: AppMotion.resolve(

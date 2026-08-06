@@ -105,6 +105,11 @@ class _PendingRestoreRepository implements AuthRepository {
   Future<void> logout() async {}
 
   @override
+  Future<AuthSession> loginWithGoogle(String idToken) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<AuthSession> login({
     required String identifier,
     required String password,
@@ -139,6 +144,11 @@ class _AuthenticatedRepository implements AuthRepository {
   @override
   Future<void> logout() async {
     logoutCalled = true;
+  }
+
+  @override
+  Future<AuthSession> loginWithGoogle(String idToken) {
+    throw UnimplementedError();
   }
 
   @override
@@ -196,6 +206,11 @@ class _PendingLogoutRemoteDataSource implements AuthRemoteDataSource {
     required String identifier,
     required String password,
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthTokenDto> loginWithGoogle(String idToken) {
     throw UnimplementedError();
   }
 
