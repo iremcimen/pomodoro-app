@@ -56,8 +56,18 @@ class AppException implements Exception {
       'EMAIL_ALREADY_EXISTS' => 'Bu e-posta adresi zaten kayıtlı.',
       'USERNAME_ALREADY_EXISTS' => 'Bu kullanıcı adı zaten alınmış.',
       'INACTIVE_USER' => 'Bu kullanıcı hesabı aktif değil.',
+      'ACTIVE_SESSION_EXISTS' =>
+        'Açık oturumunuz geri yüklenemedi. Lütfen tekrar deneyin.',
       'VALIDATION_ERROR' => 'Bilgileri kontrol edip tekrar deneyin.',
       'DATABASE_UNAVAILABLE' => 'Hizmet geçici olarak kullanılamıyor.',
+      'INVALID_GOOGLE_TOKEN' =>
+        'Google oturumu doğrulanamadı. Lütfen tekrar deneyin.',
+      'GOOGLE_IDENTITY_PROVIDER_UNAVAILABLE' =>
+        'Google ile giriş geçici olarak kullanılamıyor. Lütfen tekrar deneyin.',
+      'ACCOUNT_LINK_REQUIRED' =>
+        'Bu e-posta ile bir hesap zaten var. Önce e-posta ve şifrenizle giriş yapın.',
+      'RATE_LIMITED' =>
+        'Çok fazla deneme yaptınız. Lütfen biraz bekleyip tekrar deneyin.',
       _ =>
         fallback?.trim().isNotEmpty == true
             ? fallback!

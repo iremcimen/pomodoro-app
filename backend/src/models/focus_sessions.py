@@ -140,6 +140,14 @@ class FocusSession(Base):
             "task_id",
             "started_at",
         ),
+        Index(
+            "uq_focus_sessions_active_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text(
+                "status = 'started'"
+            ),
+        ),
     )
 
     # Bu ID backend tarafından üretilmeyecek.

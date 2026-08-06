@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/features/auth/presentation/widgets/auth_layout.dart';
+import 'package:pomodoro_app/features/auth/presentation/widgets/submit_button.dart';
 
 void main() {
   testWidgets('auth layout shows mobile content on a narrow viewport', (
@@ -48,5 +49,31 @@ void main() {
 
     expect(find.textContaining('Zamanını geri al'), findsOneWidget);
     expect(find.text('Hesabını oluştur'), findsOneWidget);
+  });
+
+  testWidgets('yükleme durumu azaltılmış harekette statik olarak anlaşılır', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: Scaffold(
+              body: SubmitButton(
+                label: 'Giriş yap',
+                loadingLabel: 'Giriş yapılıyor…',
+                isLoading: true,
+                onPressed: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Giriş yapılıyor…'), findsOneWidget);
+    expect(find.byIcon(Icons.hourglass_top_rounded), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }

@@ -16,6 +16,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   final AuthRemoteDataSource _remoteDataSource;
   final AuthTokenStore _tokenStore;
+  static const _refreshTimeout = Duration(seconds: 4);
 
   @override
   Future<AuthSession> login({
@@ -46,6 +47,12 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<AuthSession> loginWithGoogle(String idToken) async {
+    final token = await _remoteDataSource.loginWithGoogle(idToken);
+    return _persist(token);
+  }
+
+  @override
   Future<AuthSession?> restoreSession() async {
     final storedToken = await _tokenStore.read();
     if (storedToken == null) return null;
@@ -54,10 +61,13 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
-      final refreshed = await _remoteDataSource.refresh(
-        storedToken.refreshToken,
-      );
+      final refreshed = await _remoteDataSource
+          .refresh(storedToken.refreshToken)
+          .timeout(_refreshTimeout);
       return _persist(refreshed);
+    } on TimeoutException {
+      await _tokenStore.clear();
+      return null;
     } on AppException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await _tokenStore.clear();

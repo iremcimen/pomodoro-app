@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/auth_token_dto.dart';
@@ -17,12 +19,21 @@ class SecureAuthTokenStore implements AuthTokenStore {
   static const _refreshTokenKey = 'auth.refresh_token';
   static const _tokenTypeKey = 'auth.token_type';
   static const _expiresAtKey = 'auth.expires_at';
+  static const _readTimeout = Duration(seconds: 2);
+  static const _writeTimeout = Duration(seconds: 4);
 
   final FlutterSecureStorage _storage;
 
   @override
   Future<AuthTokenDto?> read() async {
-    final values = await _storage.readAll();
+    final Map<String, String> values;
+    try {
+      values = await _storage.readAll().timeout(_readTimeout);
+    } on Object {
+      // Web storage unavailable olduğunda kullanıcı giriş yapabilmeye devam
+      // etmeli; eski oturum geri yüklenmeden login ekranı açılır.
+      return null;
+    }
     final accessToken = values[_accessTokenKey];
     final refreshToken = values[_refreshTokenKey];
     final expiresAt = values[_expiresAtKey];
@@ -52,16 +63,20 @@ class SecureAuthTokenStore implements AuthTokenStore {
       _storage.write(key: _refreshTokenKey, value: values['refresh_token']),
       _storage.write(key: _tokenTypeKey, value: values['token_type']),
       _storage.write(key: _expiresAtKey, value: values['expires_at']),
-    ]);
+    ]).timeout(_writeTimeout);
   }
 
   @override
   Future<void> clear() async {
-    await Future.wait([
-      _storage.delete(key: _accessTokenKey),
-      _storage.delete(key: _refreshTokenKey),
-      _storage.delete(key: _tokenTypeKey),
-      _storage.delete(key: _expiresAtKey),
-    ]);
+    try {
+      await Future.wait([
+        _storage.delete(key: _accessTokenKey),
+        _storage.delete(key: _refreshTokenKey),
+        _storage.delete(key: _tokenTypeKey),
+        _storage.delete(key: _expiresAtKey),
+      ]).timeout(_writeTimeout);
+    } on Object {
+      // Temizleme hatası kullanıcıyı giriş ekranında kilitlememeli.
+    }
   }
 }

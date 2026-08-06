@@ -246,7 +246,6 @@ class InactiveUserException(
             },
         )
 
-
 # Veritabanına geçici olarak erişilemediğinde güvenli bir 503 cevabı üretir.
 class DatabaseUnavailableException(AppException):
     status_code = HTTPStatus.SERVICE_UNAVAILABLE.value
@@ -254,4 +253,106 @@ class DatabaseUnavailableException(AppException):
     message = "Database service is temporarily unavailable."
     log_level = "ERROR"
 
-# Hata türlerini tanımlar.
+
+class RedisUnavailableException(AppException):
+    status_code = HTTPStatus.SERVICE_UNAVAILABLE.value
+    code = "REDIS_UNAVAILABLE"
+    message = "Redis service is temporarily unavailable."
+    log_level = "ERROR"
+
+class RequestBodyTooLargeException(AppException):
+    status_code = 413
+    code = "REQUEST_BODY_TOO_LARGE"
+    message = "Request body is too large."
+    log_level = "WARNING"
+
+    def __init__(self, max_body_bytes: int) -> None:
+        super().__init__(
+            safe_context={
+                "max_body_bytes": max_body_bytes,
+            },
+        )
+
+
+GoogleTokenFailureReason = Literal[
+    "invalid",
+    "wrong_audience",
+    "missing_subject",
+    "missing_email",
+    "email_not_verified",
+]
+
+
+class InvalidGoogleTokenException(
+    AuthenticationRequiredException
+):
+    code = "INVALID_GOOGLE_TOKEN"
+    message = "Invalid Google identity token."
+
+    def __init__(
+        self,
+        *,
+        reason: GoogleTokenFailureReason = "invalid",
+    ) -> None:
+        super().__init__(
+            safe_context={
+                "provider": "google",
+                "reason": reason,
+            },
+        )
+
+
+class GoogleIdentityProviderUnavailableException(
+    AppException
+):
+    status_code = HTTPStatus.SERVICE_UNAVAILABLE.value
+    code = "GOOGLE_IDENTITY_PROVIDER_UNAVAILABLE"
+    message = (
+        "Google authentication is temporarily unavailable."
+    )
+    log_level = "ERROR"
+
+    def __init__(self) -> None:
+        super().__init__(
+            safe_context={
+                "provider": "google",
+                "reason": "transport_error",
+            },
+        )
+
+
+class GoogleAuthenticationDisabledException(
+    AppException
+):
+    status_code = HTTPStatus.SERVICE_UNAVAILABLE.value
+    code = "GOOGLE_AUTHENTICATION_DISABLED"
+    message = "Google authentication is unavailable."
+    log_level = "WARNING"
+
+    def __init__(self) -> None:
+        super().__init__(
+            safe_context={
+                "provider": "google",
+                "reason": "disabled",
+            },
+        )
+
+
+class AccountLinkRequiredException(
+    ConflictException
+):
+    code = "ACCOUNT_LINK_REQUIRED"
+    message = (
+        "An account with this email already exists. "
+        "Sign in using the existing method to link Google."
+    )
+
+    def __init__(self) -> None:
+        super().__init__(
+            safe_context={
+                "provider": "google",
+                "reason": "email_collision",
+            },
+        )
+
+# Bu dosya hata türlerini tanımlar.

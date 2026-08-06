@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/config/app_config.dart';
 import '../data/datasources/auth_remote_data_source.dart';
 import '../data/datasources/auth_token_store.dart';
+import '../data/datasources/google_identity_service.dart';
 import '../data/interceptors/auth_interceptor.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -45,6 +48,12 @@ final authTokenStoreProvider = Provider<AuthTokenStore>((ref) {
 
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   return DioAuthRemoteDataSource(ref.watch(authDioProvider));
+});
+
+final googleIdentityServiceProvider = Provider<GoogleIdentityService>((ref) {
+  final service = GoogleSignInIdentityService();
+  ref.onDispose(() => unawaited(service.dispose()));
+  return service;
 });
 
 /*

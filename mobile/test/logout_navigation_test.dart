@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pomodoro_app/app/app.dart';
@@ -12,6 +13,39 @@ import 'package:pomodoro_app/features/auth/domain/entities/auth_session.dart';
 import 'package:pomodoro_app/features/auth/domain/repositories/auth_repository.dart';
 
 void main() {
+  testWidgets('session restore beklerken giriş butonu kullanılabilir kalır', (
+    tester,
+  ) async {
+    final repository = _PendingRestoreRepository();
+    addTearDown(repository.completeRestore);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repository),
+          authTokenStoreProvider.overrideWithValue(
+            _InMemoryTokenStore(_tokenDto),
+          ),
+        ],
+        child: const PomodoroApp(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Giriş yap'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    final button = tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('Giriş yap'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    expect(button.onPressed, isNotNull);
+
+    repository.completeRestore();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('logout redirects an authenticated user to login', (
     tester,
   ) async {
@@ -19,11 +53,17 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repository),
+          authTokenStoreProvider.overrideWithValue(
+            _InMemoryTokenStore(_tokenDto),
+          ),
+        ],
         child: const PomodoroApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Ayarlar yükleniyor…'), findsOneWidget);
 
@@ -51,6 +91,43 @@ void main() {
   });
 }
 
+class _PendingRestoreRepository implements AuthRepository {
+  final _restoreCompleter = Completer<AuthSession?>();
+
+  void completeRestore() {
+    if (!_restoreCompleter.isCompleted) _restoreCompleter.complete(null);
+  }
+
+  @override
+  Future<AuthSession?> restoreSession() => _restoreCompleter.future;
+
+  @override
+  Future<void> logout() async {}
+
+  @override
+  Future<AuthSession> loginWithGoogle(String idToken) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthSession> login({
+    required String identifier,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthSession> register({
+    required String email,
+    required String username,
+    required String password,
+    String? fullName,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
 final _tokenDto = AuthTokenDto(
   accessToken: 'access-token',
   refreshToken: 'refresh-token-that-is-long-enough-for-the-backend',
@@ -67,6 +144,11 @@ class _AuthenticatedRepository implements AuthRepository {
   @override
   Future<void> logout() async {
     logoutCalled = true;
+  }
+
+  @override
+  Future<AuthSession> loginWithGoogle(String idToken) {
+    throw UnimplementedError();
   }
 
   @override
@@ -124,6 +206,11 @@ class _PendingLogoutRemoteDataSource implements AuthRemoteDataSource {
     required String identifier,
     required String password,
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthTokenDto> loginWithGoogle(String idToken) {
     throw UnimplementedError();
   }
 

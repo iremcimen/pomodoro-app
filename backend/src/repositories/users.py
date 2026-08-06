@@ -89,13 +89,11 @@ class UserRepository:
         email: str,
         username: str,
         full_name: str | None,
-        password_hash: str,
     ) -> User:
         user = User(
             email=email,
             username=username,
             full_name=full_name,
-            password_hash=password_hash,
         )
 
         self._db.add(user)

@@ -8,8 +8,10 @@ from alembic import context
 from src.core.config import settings
 from src.core.database import Base
 from src.models import (  # noqa: F401
+    AuthIdentity,
     AuthSession,
     FocusSession,
+    PasswordCredential,
     Task,
     User,
     UserSettings,

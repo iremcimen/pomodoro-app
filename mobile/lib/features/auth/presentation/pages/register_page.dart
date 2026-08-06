@@ -26,6 +26,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmationController = TextEditingController();
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -38,27 +39,31 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
-    await ref
-        .read(authControllerProvider.notifier)
-        .register(
-          fullName: _fullNameController.text,
-          username: _usernameController.text,
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+    setState(() => _isSubmitting = true);
+    try {
+      await ref
+          .read(authControllerProvider.notifier)
+          .register(
+            fullName: _fullNameController.text,
+            username: _usernameController.text,
+            email: _emailController.text,
+            password: _passwordController.text,
+          );
 
-    if (mounted && ref.read(authControllerProvider).value != null) {
-      TextInput.finishAutofillContext();
+      if (mounted && ref.read(authControllerProvider).value != null) {
+        TextInput.finishAutofillContext();
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     listenForAuthErrors(ref, context);
-    final authState = ref.watch(authControllerProvider);
 
     return AuthLayout(
       title: 'Hesabını oluştur',
@@ -133,7 +138,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               const SizedBox(height: 26),
               SubmitButton(
                 label: 'Hesap oluştur',
-                isLoading: authState.isLoading,
+                loadingLabel: 'Hesap oluşturuluyor…',
+                isLoading: _isSubmitting,
                 onPressed: _submit,
               ),
             ],

@@ -88,7 +88,29 @@ class LoginRequest(BaseModel):
             )
 
         return self
+    
+class GoogleLoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
+    id_token: str = Field(
+        min_length=100,
+        max_length=8192,
+        repr=False,
+        json_schema_extra={
+            "writeOnly": True,
+        },
+    )
+
+    @field_validator("id_token", mode="before")
+    @classmethod
+    def normalize_id_token(
+        cls,
+        value: object,
+    ) -> object:
+        if isinstance(value, str):
+            return value.strip()
+
+        return value
 
 class RefreshTokenRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")

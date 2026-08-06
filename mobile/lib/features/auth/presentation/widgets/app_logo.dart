@@ -10,7 +10,7 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = onDark ? Colors.white : AppColors.ink;
+    final foreground = onDark ? AppColors.acidLime : AppColors.cyberGrape;
 
     return Semantics(
       label: 'Pomo',
@@ -22,7 +22,7 @@ class AppLogo extends StatelessWidget {
             width: compact ? 38 : 44,
             height: compact ? 38 : 44,
             decoration: BoxDecoration(
-              color: onDark ? Colors.white : AppColors.coral,
+              color: onDark ? AppColors.acidLime : AppColors.cyberGrape,
               borderRadius: BorderRadius.circular(compact ? 12 : 14),
               boxShadow: [
                 BoxShadow(
@@ -34,7 +34,7 @@ class AppLogo extends StatelessWidget {
             ),
             child: Icon(
               Icons.timer_rounded,
-              color: onDark ? AppColors.coral : Colors.white,
+              color: onDark ? AppColors.cyberGrape : AppColors.acidLime,
               size: compact ? 23 : 27,
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/app_colors.dart';
 import 'app_logo.dart';
 
 class AuthBrandPanel extends StatelessWidget {
@@ -8,7 +9,7 @@ class AuthBrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFFE94F44),
+      color: AppColors.cyberGrape,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -42,7 +43,7 @@ class AuthBrandPanel extends StatelessWidget {
                 Text(
                   'Net çalışma aralıkları, bilinçli molalar ve daha sakin bir gün.',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.82),
+                    color: AppColors.acidLime.withValues(alpha: 0.86),
                     fontWeight: FontWeight.w500,
                     height: 1.55,
                   ),
@@ -63,7 +64,7 @@ class AuthBrandPanel extends StatelessWidget {
                 Text(
                   'Küçük adımlar. Büyük ilerleme.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white70,
+                    color: AppColors.acidLime.withValues(alpha: 0.86),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -90,7 +91,7 @@ class _DecorativeCircle extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: Colors.white.withValues(alpha: opacity),
+          color: AppColors.acidLime.withValues(alpha: opacity),
           width: 70,
         ),
       ),
@@ -109,19 +110,18 @@ class _FeaturePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: AppColors.acidLime,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: Colors.white),
+          Icon(icon, size: 18, color: AppColors.cyberGrapeDark),
           const SizedBox(width: 8),
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.cyberGrapeDark,
               fontWeight: FontWeight.w700,
             ),
           ),

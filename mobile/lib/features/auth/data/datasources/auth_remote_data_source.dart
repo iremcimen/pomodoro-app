@@ -16,6 +16,8 @@ abstract interface class AuthRemoteDataSource {
     String? fullName,
   });
 
+  Future<AuthTokenDto> loginWithGoogle(String idToken);
+
   Future<AuthTokenDto> refresh(String refreshToken);
 
   Future<void> logout(String refreshToken);
@@ -58,6 +60,11 @@ class DioAuthRemoteDataSource implements AuthRemoteDataSource {
         'password': password,
       },
     );
+  }
+
+  @override
+  Future<AuthTokenDto> loginWithGoogle(String idToken) {
+    return _requestToken('/auth/google', data: {'id_token': idToken.trim()});
   }
 
   @override

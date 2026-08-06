@@ -7,6 +7,7 @@ import '../../../core/error/app_exception.dart';
 import '../../settings/domain/entities/user_settings.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../statistics/application/statistics_controller.dart';
+import '../domain/active_focus_session.dart';
 import '../domain/pomodoro_state.dart';
 import 'timer_providers.dart';
 import 'session_feedback_service.dart';
@@ -17,6 +18,8 @@ final pomodoroControllerProvider =
 class PomodoroController extends Notifier<PomodoroState> {
   Timer? _ticker;
   bool _finishing = false;
+  bool _hasCheckedForActiveSession = false;
+  bool _recovering = false;
 
   @override
   PomodoroState build() {
@@ -26,8 +29,25 @@ class PomodoroController extends Notifier<PomodoroState> {
       status: TimerStatus.idle,
       remainingSeconds: 25 * 60,
       plannedSeconds: 25 * 60,
-      completedFocusCount: 0,
+      dailyCompletedFocusCount: 0,
     );
+  }
+
+  void syncDailyCompletedFocusCount(int count) {
+    if (count < 0 || count == state.dailyCompletedFocusCount) return;
+    state = state.copyWith(dailyCompletedFocusCount: count);
+  }
+
+  Future<void> initialize(UserSettings settings) async {
+    configure(settings);
+    if (_hasCheckedForActiveSession ||
+        state.isActive ||
+        state.isBusy) {
+      return;
+    }
+
+    _hasCheckedForActiveSession = true;
+    await _restoreActiveSession(settings);
   }
 
   void configure(UserSettings settings) {
@@ -44,8 +64,21 @@ class PomodoroController extends Notifier<PomodoroState> {
         : state.copyWith(selectedTaskId: taskId);
   }
 
+  void selectPhase(PomodoroPhase phase, UserSettings settings) {
+    if (state.status != TimerStatus.idle || phase == state.phase) return;
+    _setIdlePhase(phase, settings);
+  }
+
+  void skipBreak(UserSettings settings) {
+    if (state.status != TimerStatus.idle ||
+        state.phase == PomodoroPhase.focus) {
+      return;
+    }
+    _setIdlePhase(PomodoroPhase.focus, settings);
+  }
+
   Future<void> start(UserSettings settings) async {
-    if (state.status == TimerStatus.completing) return;
+    if (state.isBusy) return;
     if (state.status == TimerStatus.paused) {
       if (state.remainingSeconds == 0) {
         await _finish(settings);
@@ -60,7 +93,7 @@ class PomodoroController extends Notifier<PomodoroState> {
     final startedAt = DateTime.now().toUtc();
     final sessionId = _newUuid();
     state = state.copyWith(
-      status: TimerStatus.completing,
+      status: TimerStatus.starting,
       plannedSeconds: planned,
       remainingSeconds: planned,
       sessionId: sessionId,
@@ -79,6 +112,16 @@ class PomodoroController extends Notifier<PomodoroState> {
             taskId: state.selectedTaskId,
           );
     } on Object catch (error) {
+      if (error is AppException && error.code == 'ACTIVE_SESSION_EXISTS') {
+        state = state.copyWith(
+          status: TimerStatus.syncing,
+          clearSession: true,
+          clearEndsAt: true,
+          clearError: true,
+        );
+        final restored = await _restoreActiveSession(settings);
+        if (restored) return;
+      }
       state = state.copyWith(
         status: TimerStatus.idle,
         clearSession: true,
@@ -92,6 +135,71 @@ class PomodoroController extends Notifier<PomodoroState> {
       endsAt: DateTime.now().add(Duration(seconds: planned)),
     );
     _startTicker(settings);
+  }
+
+  Future<bool> _restoreActiveSession(UserSettings settings) async {
+    if (_recovering) return state.isActive;
+    _recovering = true;
+    _ticker?.cancel();
+    state = state.copyWith(
+      status: TimerStatus.syncing,
+      clearSession: true,
+      clearEndsAt: true,
+      clearError: true,
+    );
+
+    ActiveFocusSession? activeSession;
+    try {
+      activeSession = await ref
+          .read(focusSessionRemoteDataSourceProvider)
+          .getActive();
+    } on Object catch (error) {
+      state = state.copyWith(
+        status: TimerStatus.idle,
+        errorMessage: 'Açık oturum kontrol edilemedi. ${_message(error)}',
+      );
+      _recovering = false;
+      return false;
+    }
+
+    if (activeSession == null) {
+      final seconds = _durationFor(state.phase, settings);
+      state = state.copyWith(
+        status: TimerStatus.idle,
+        plannedSeconds: seconds,
+        remainingSeconds: seconds,
+        clearSession: true,
+        clearEndsAt: true,
+        clearError: true,
+      );
+      _recovering = false;
+      return false;
+    }
+
+    final remaining = activeSession.remainingSecondsAt(DateTime.now().toUtc());
+    state = state.copyWith(
+      phase: activeSession.phase,
+      status: remaining == 0 ? TimerStatus.paused : TimerStatus.running,
+      plannedSeconds: activeSession.plannedSeconds,
+      remainingSeconds: remaining,
+      sessionId: activeSession.id,
+      startedAt: activeSession.startedAt,
+      selectedTaskId: activeSession.taskId,
+      clearSelectedTask: activeSession.taskId == null,
+      endsAt: remaining == 0
+          ? null
+          : DateTime.now().add(Duration(seconds: remaining)),
+      clearEndsAt: remaining == 0,
+      clearError: true,
+    );
+    _recovering = false;
+
+    if (remaining == 0) {
+      await _finish(settings);
+    } else {
+      _startTicker(settings);
+    }
+    return true;
   }
 
   void pause() {
@@ -119,12 +227,17 @@ class PomodoroController extends Notifier<PomodoroState> {
     _ticker?.cancel();
     final actual = state.plannedSeconds - state.remainingSeconds;
     final sessionId = state.sessionId!;
-    state = state.copyWith(status: TimerStatus.completing);
+    final cancelledPhase = state.phase;
+    state = state.copyWith(status: TimerStatus.cancelling);
     try {
       await ref
           .read(focusSessionRemoteDataSourceProvider)
           .cancel(sessionId, actual.clamp(0, state.plannedSeconds));
-      _resetCurrentPhase(settings);
+      if (cancelledPhase == PomodoroPhase.focus) {
+        _resetCurrentPhase(settings);
+      } else {
+        _setIdlePhase(PomodoroPhase.focus, settings);
+      }
     } on Object catch (error) {
       state = state.copyWith(
         status: TimerStatus.paused,
@@ -172,8 +285,8 @@ class PomodoroController extends Notifier<PomodoroState> {
           .read(focusSessionRemoteDataSourceProvider)
           .complete(sessionId, state.plannedSeconds);
       final focusCount = completedPhase == PomodoroPhase.focus
-          ? state.completedFocusCount + 1
-          : state.completedFocusCount;
+          ? state.dailyCompletedFocusCount + 1
+          : state.dailyCompletedFocusCount;
       final nextPhase = nextPomodoroPhase(
         completedPhase: completedPhase,
         completedFocusCount: focusCount,
@@ -185,7 +298,7 @@ class PomodoroController extends Notifier<PomodoroState> {
         status: TimerStatus.idle,
         remainingSeconds: nextSeconds,
         plannedSeconds: nextSeconds,
-        completedFocusCount: focusCount,
+        dailyCompletedFocusCount: focusCount,
         clearSession: true,
         clearEndsAt: true,
         clearError: true,
@@ -211,8 +324,13 @@ class PomodoroController extends Notifier<PomodoroState> {
   }
 
   void _resetCurrentPhase(UserSettings settings) {
-    final seconds = _durationFor(state.phase, settings);
+    _setIdlePhase(state.phase, settings);
+  }
+
+  void _setIdlePhase(PomodoroPhase phase, UserSettings settings) {
+    final seconds = _durationFor(phase, settings);
     state = state.copyWith(
+      phase: phase,
       status: TimerStatus.idle,
       remainingSeconds: seconds,
       plannedSeconds: seconds,

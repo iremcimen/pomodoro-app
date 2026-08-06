@@ -9,6 +9,7 @@ import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/tasks/presentation/pages/tasks_page.dart';
 import '../../features/statistics/presentation/pages/statistics_page.dart';
+import '../../shared/presentation/widgets/app_shell.dart';
 
 abstract final class AppRoutes {
   static const login = '/login';
@@ -39,25 +40,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'register',
         builder: (context, state) => const RegisterPage(),
       ),
-      GoRoute(
-        path: AppRoutes.home,
-        name: 'home',
-        builder: (context, state) => const HomePage(),
-      ),
-      GoRoute(
-        path: AppRoutes.settings,
-        name: 'settings',
-        builder: (context, state) => const SettingsPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.tasks,
-        name: 'tasks',
-        builder: (context, state) => const TasksPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.statistics,
-        name: 'statistics',
-        builder: (context, state) => const StatisticsPage(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                name: 'home',
+                builder: (context, state) => const HomePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.tasks,
+                name: 'tasks',
+                builder: (context, state) => const TasksPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.statistics,
+                name: 'statistics',
+                builder: (context, state) => const StatisticsPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                name: 'settings',
+                builder: (context, state) => const SettingsPage(),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
     redirect: (context, state) {

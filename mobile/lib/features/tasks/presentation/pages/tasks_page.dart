@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/app_tokens.dart';
 import '../../../../core/error/app_exception.dart';
+import '../../../../shared/presentation/widgets/app_state_view.dart';
+import '../../../../shared/presentation/widgets/responsive_content.dart';
 import '../../application/task_providers.dart';
 import '../../domain/entities/task_item.dart';
 
@@ -11,40 +14,62 @@ class TasksPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(taskControllerProvider);
+
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Görevler'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Açık görevler'),
-              Tab(text: 'Tamamlananlar'),
-            ],
+      child: ResponsiveContent(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showTaskForm(context, ref),
+            icon: const Icon(Icons.add),
+            label: const Text('Görev ekle'),
           ),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _showTaskForm(context, ref),
-          icon: const Icon(Icons.add),
-          label: const Text('Görev ekle'),
-        ),
-        body: state.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _TaskError(
-            message: error is AppException
-                ? error.message
-                : 'Görevler yüklenemedi.',
-            onRetry: () => ref.read(taskControllerProvider.notifier).refresh(),
-          ),
-          data: (tasks) => TabBarView(
+          body: Column(
             children: [
-              _TaskList(
-                tasks: tasks.where((task) => !task.isCompleted).toList(),
-                emptyMessage: 'Henüz açık görevin yok.',
+              const Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  0,
+                ),
+                child: TabBar(
+                  tabs: [
+                    Tab(text: 'Açık görevler'),
+                    Tab(text: 'Tamamlananlar'),
+                  ],
+                ),
               ),
-              _TaskList(
-                tasks: tasks.where((task) => task.isCompleted).toList(),
-                emptyMessage: 'Henüz tamamlanan görevin yok.',
+              const SizedBox(height: AppSpacing.xs),
+              Expanded(
+                child: AppAsyncValueView<List<TaskItem>>(
+                  value: state,
+                  loadingLabel: 'Görevler yükleniyor…',
+                  errorMessage: (error) => error is AppException
+                      ? error.message
+                      : 'Görevler yüklenemedi.',
+                  onRetry: () =>
+                      ref.read(taskControllerProvider.notifier).refresh(),
+                  data: (tasks) => TabBarView(
+                    children: [
+                      _TaskList(
+                        tasks: tasks
+                            .where((task) => !task.isCompleted)
+                            .toList(),
+                        emptyTitle: 'Açık görevin yok',
+                        emptyDescription:
+                            'Yeni bir görev ekleyip odağını somut bir hedefe bağla.',
+                      ),
+                      _TaskList(
+                        tasks: tasks.where((task) => task.isCompleted).toList(),
+                        emptyTitle: 'Tamamlanan görev yok',
+                        emptyDescription:
+                            'Bitirdiğin görevler burada birikmeye başlayacak.',
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -55,33 +80,37 @@ class TasksPage extends ConsumerWidget {
 }
 
 class _TaskList extends ConsumerWidget {
-  const _TaskList({required this.tasks, required this.emptyMessage});
+  const _TaskList({
+    required this.tasks,
+    required this.emptyTitle,
+    required this.emptyDescription,
+  });
+
   final List<TaskItem> tasks;
-  final String emptyMessage;
+  final String emptyTitle;
+  final String emptyDescription;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (tasks.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.task_alt_rounded, size: 56),
-              const SizedBox(height: 12),
-              Text(emptyMessage),
-            ],
-          ),
-        ),
+      return AppStateMessage(
+        icon: Icons.task_alt_rounded,
+        title: emptyTitle,
+        description: emptyDescription,
       );
     }
+
     return RefreshIndicator(
       onRefresh: () => ref.read(taskControllerProvider.notifier).refresh(),
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          104,
+        ),
         itemCount: tasks.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
         itemBuilder: (context, index) => _TaskCard(task: tasks[index]),
       ),
     );
@@ -95,20 +124,30 @@ class _TaskCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+
     return Card(
-      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.md,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Checkbox(
-              value: task.isCompleted,
-              onChanged: (value) => ref
-                  .read(taskControllerProvider.notifier)
-                  .edit(id: task.id, isCompleted: value),
+            Semantics(
+              label: task.isCompleted
+                  ? '${task.title} görevini yeniden aç'
+                  : '${task.title} görevini tamamla',
+              child: Checkbox(
+                value: task.isCompleted,
+                onChanged: (value) => ref
+                    .read(taskControllerProvider.notifier)
+                    .edit(id: task.id, isCompleted: value),
+              ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,30 +155,46 @@ class _TaskCard extends ConsumerWidget {
                   Text(
                     task.title,
                     style: theme.textTheme.titleMedium?.copyWith(
+                      color: task.isCompleted
+                          ? theme.colorScheme.onSurfaceVariant
+                          : theme.colorScheme.onSurface,
                       decoration: task.isCompleted
                           ? TextDecoration.lineThrough
                           : null,
                     ),
                   ),
                   if (task.description != null) ...[
-                    const SizedBox(height: 4),
-                    Text(task.description!),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      task.description!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
                       Expanded(
-                        child: LinearProgressIndicator(
-                          value: task.progress,
-                          minHeight: 8,
-                          borderRadius: BorderRadius.circular(99),
+                        child: Semantics(
+                          label:
+                              '${task.title}: '
+                              '${task.completedPomodoros} odak tamamlandı, '
+                              '${task.estimatedPomodoros} odak tahmin edildi',
+                          child: LinearProgressIndicator(
+                            value: task.progress,
+                            minHeight: 7,
+                            borderRadius: BorderRadius.circular(AppRadii.pill),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.sm),
                       Text(
-                        '${task.completedPomodoros}/'
-                        '${task.estimatedPomodoros} Pomodoro',
-                        style: theme.textTheme.labelLarge,
+                        '${task.completedPomodoros} odak · '
+                        '${task.estimatedPomodoros} tahmin',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -147,6 +202,7 @@ class _TaskCard extends ConsumerWidget {
               ),
             ),
             PopupMenuButton<String>(
+              tooltip: '${task.title} için işlemler',
               onSelected: (action) async {
                 if (action == 'edit') {
                   await _showTaskForm(context, ref, task: task);
@@ -155,8 +211,22 @@ class _TaskCard extends ConsumerWidget {
                 }
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Düzenle')),
-                PopupMenuItem(value: 'delete', child: Text('Sil')),
+                PopupMenuItem(
+                  value: 'edit',
+                  child: ListTile(
+                    leading: Icon(Icons.edit_outlined),
+                    title: Text('Düzenle'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('Sil'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
               ],
             ),
           ],
@@ -215,7 +285,7 @@ class _TaskFormDialogState extends ConsumerState<_TaskFormDialog> {
                 validator: (value) =>
                     value?.trim().isEmpty == true ? 'Başlık gerekli.' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _description,
                 maxLines: 3,
@@ -223,12 +293,13 @@ class _TaskFormDialogState extends ConsumerState<_TaskFormDialog> {
                   labelText: 'Açıklama (isteğe bağlı)',
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 children: [
                   const Expanded(child: Text('Tahmini Pomodoro')),
                   IconButton(
-                    onPressed: _estimatedPomodoros > 0
+                    tooltip: 'Tahmini Pomodoro sayısını azalt',
+                    onPressed: _estimatedPomodoros > 1
                         ? () => setState(() => _estimatedPomodoros--)
                         : null,
                     icon: const Icon(Icons.remove_circle_outline),
@@ -241,6 +312,7 @@ class _TaskFormDialogState extends ConsumerState<_TaskFormDialog> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Tahmini Pomodoro sayısını artır',
                     onPressed: () => setState(() => _estimatedPomodoros++),
                     icon: const Icon(Icons.add_circle_outline),
                   ),
@@ -289,27 +361,6 @@ class _TaskFormDialogState extends ConsumerState<_TaskFormDialog> {
       ).showSnackBar(const SnackBar(content: Text('Görev kaydedilemedi.')));
     }
   }
-}
-
-class _TaskError extends StatelessWidget {
-  const _TaskError({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(message),
-        const SizedBox(height: 12),
-        FilledButton.tonal(
-          onPressed: onRetry,
-          child: const Text('Tekrar dene'),
-        ),
-      ],
-    ),
-  );
 }
 
 Future<void> _showTaskForm(
